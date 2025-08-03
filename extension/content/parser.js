@@ -3,6 +3,9 @@
  * Extracts profile data from LinkedIn pages
  */
 
+// Log to confirm script is loaded
+console.log('NetworkIQ: Parser script loaded on', window.location.href);
+
 class LinkedInParser {
   constructor() {
     this.profileData = {};

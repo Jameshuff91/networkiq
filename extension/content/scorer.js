@@ -3,6 +3,9 @@
  * Scores profiles based on user's uploaded resume
  */
 
+// Log to confirm script is loaded
+console.log('NetworkIQ: Scorer script loaded');
+
 class NetworkScorer {
   constructor() {
     this.searchElements = [];

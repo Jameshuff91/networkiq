@@ -3,6 +3,9 @@
  * Adds score badges and UI elements to LinkedIn
  */
 
+// Log to confirm script is loaded
+console.log('NetworkIQ: UI script loaded, initializing...');
+
 class NetworkIQUI {
   constructor() {
     this.parser = new LinkedInParser();
