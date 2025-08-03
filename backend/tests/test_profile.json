@@ -1,0 +1,34 @@
+{
+  "name": "Jane Doe",
+  "headline": "Software Engineer at Facebook",
+  "summary": "Experienced software engineer with expertise in React and Node.js",
+  "experience": [
+    {
+      "title": "Senior Software Engineer",
+      "company": "Facebook",
+      "duration": "2020 - Present",
+      "description": "Building large-scale React applications"
+    },
+    {
+      "title": "Software Engineer",
+      "company": "Google",
+      "duration": "2018 - 2020",
+      "description": "Worked on machine learning infrastructure"
+    }
+  ],
+  "education": [
+    {
+      "school": "MIT",
+      "degree": "Bachelor of Science",
+      "field": "Computer Science",
+      "dates": "2014 - 2018"
+    }
+  ],
+  "skills": ["React", "Node.js", "Python", "Machine Learning", "AWS"],
+  "certifications": ["AWS Certified Solutions Architect"],
+  "languages": ["English", "Spanish"],
+  "connections": 500,
+  "publicProfileUrl": "https://linkedin.com/in/janedoe",
+  "location": "San Francisco, CA",
+  "profilePicture": "https://media.licdn.com/jane.jpg"
+}

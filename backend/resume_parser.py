@@ -361,7 +361,13 @@ class ResumeParser:
                 if "branch" not in military_info:
                     if any(
                         branch in keyword
-                        for branch in ["air force", "army", "navy", "marine", "coast guard"]
+                        for branch in [
+                            "air force",
+                            "army",
+                            "navy",
+                            "marine",
+                            "coast guard",
+                        ]
                     ):
                         military_info["branch"] = keyword
                 military_info["veteran"] = True
@@ -369,7 +375,13 @@ class ResumeParser:
                 # Check for academy
                 if any(
                     academy in keyword
-                    for academy in ["usafa", "usma", "usna", "west point", "naval academy"]
+                    for academy in [
+                        "usafa",
+                        "usma",
+                        "usna",
+                        "west point",
+                        "naval academy",
+                    ]
                 ):
                     military_info["academy"] = keyword
 
@@ -553,7 +565,12 @@ class ResumeParser:
         # Add keyword elements
         for keyword in data.get("keywords", [])[:5]:  # Top 5 keywords
             elements.append(
-                {"category": "keyword", "value": keyword, "weight": 5, "display": keyword.title()}
+                {
+                    "category": "keyword",
+                    "value": keyword,
+                    "weight": 5,
+                    "display": keyword.title(),
+                }
             )
 
         return elements

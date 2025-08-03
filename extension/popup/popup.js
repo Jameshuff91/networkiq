@@ -110,15 +110,17 @@ function setupEventListeners() {
     }
   });
   
-  // Footer links
+  // Footer links - commented out until deployed
   document.getElementById('dashboardLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: 'https://networkiq.ai/dashboard' });
+    // chrome.tabs.create({ url: 'https://networkiq.ai/dashboard' });
+    alert('Dashboard coming soon!');
   });
   
   document.getElementById('supportLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: 'https://networkiq.ai/support' });
+    // chrome.tabs.create({ url: 'https://networkiq.ai/support' });
+    alert('Support: Please email support@networkiq.ai');
   });
   
   document.getElementById('logoutLink')?.addEventListener('click', async (e) => {

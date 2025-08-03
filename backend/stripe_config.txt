@@ -1,0 +1,10 @@
+# Stripe Configuration for NetworkIQ
+# Created: 1754242902
+
+# Pro Subscription
+STRIPE_PRICE_ID=price_1Rs5ukQaJlv206wSp3T2hD1J
+STRIPE_PRODUCT_ID=prod_SnhJ7Ro3KXSIt9
+
+# Free Tier (optional)
+STRIPE_FREE_PRICE_ID=price_1Rs5ukQaJlv206wSjT7QJmFd
+STRIPE_FREE_PRODUCT_ID=prod_SnhJxrGSj8iM2Z

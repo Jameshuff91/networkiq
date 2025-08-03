@@ -145,6 +145,7 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Invalid token")
 
     user_id = payload.get("sub")
+    # Look up user by user_id
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -160,9 +161,10 @@ async def root():
 @app.post("/api/auth/signup")
 async def signup(user_data: UserSignup):
     """Create new user account"""
-    # Check if user exists
-    if user_data.email in users_db:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    # Check if user exists (search by email since users_db is now keyed by user_id)
+    for uid, u in users_db.items():
+        if u.get("email") == user_data.email:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
     # Hash password
     hashed_password = pwd_context.hash(user_data.password)
@@ -178,7 +180,7 @@ async def signup(user_data: UserSignup):
         "subscription_tier": "free",
         "created_at": datetime.utcnow().isoformat(),
     }
-    users_db[user_data.email] = user
+    users_db[user_id] = user  # Store by user_id for JWT lookups
     save_db("users", users_db)  # Persist data
 
     # Create access token
@@ -199,11 +201,17 @@ async def signup(user_data: UserSignup):
 @app.post("/api/auth/login")
 async def login(user_data: UserLogin):
     """Login user"""
-    # Check user exists
-    if user_data.email not in users_db:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    # Check user exists (search by email since users_db is now keyed by user_id)
+    user = None
+    found_user_id = None
+    for uid, u in users_db.items():
+        if u.get("email") == user_data.email:
+            user = u
+            found_user_id = uid
+            break
 
-    user = users_db[user_data.email]
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Verify password
     if not pwd_context.verify(user_data.password, user["password"]):
@@ -245,7 +253,8 @@ async def upload_resume(
     # Validate file type
     if not file.filename.lower().endswith((".pdf", ".docx", ".doc", ".txt")):
         raise HTTPException(
-            status_code=400, detail="Invalid file type. Please upload PDF, DOCX, or TXT file"
+            status_code=400,
+            detail="Invalid file type. Please upload PDF, DOCX, or TXT file",
         )
 
     # Read file content
@@ -284,7 +293,9 @@ async def upload_resume(
 
 
 @app.post("/api/profiles/score")
-async def score_profile(profile: ProfileScore, current_user: dict = Depends(get_current_user)):
+async def score_profile(
+    profile: ProfileScore, current_user: dict = Depends(get_current_user)
+):
     """Score a LinkedIn profile"""
     # Check usage limits for free tier
     user_id = current_user["id"]
@@ -321,7 +332,9 @@ async def score_profile(profile: ProfileScore, current_user: dict = Depends(get_
         if any(word in profile_text for word in ["ceo", "founder", "director", "vp"]):
             score += 20
             connections.append("Leadership Role")
-        if any(word in profile_text for word in ["ai", "machine learning", "data science"]):
+        if any(
+            word in profile_text for word in ["ai", "machine learning", "data science"]
+        ):
             score += 15
             connections.append("AI/ML Background")
     else:
@@ -474,7 +487,9 @@ async def generate_message(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate message: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate message: {str(e)}"
+        )
 
 
 @app.post("/api/payments/create-checkout")
@@ -517,7 +532,9 @@ async def stripe_webhook(request: Request):
     sig_header = request.headers.get("stripe-signature")
 
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid payload")
     except stripe.error.SignatureVerificationError:

@@ -1,0 +1,13 @@
+# NetworkIQ Pricing Configuration
+# Generated for new tier structure
+
+# Basic Tier ($5/month)
+STRIPE_BASIC_PRICE_ID=price_1Rs5yHQaJlv206wSslm2yAQT
+STRIPE_BASIC_PRODUCT_ID=prod_SnhNpxNazTG2F2
+
+# Advanced Tier ($20/month)
+STRIPE_ADVANCED_PRICE_ID=price_1Rs5yIQaJlv206wSfUp4nf4u
+STRIPE_ADVANCED_PRODUCT_ID=prod_SnhNxqdtxwaHj7
+
+# Free Tier
+STRIPE_FREE_PRODUCT_ID=prod_SnhN1jMBkya05t

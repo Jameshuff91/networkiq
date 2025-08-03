@@ -1,16 +1,14 @@
 /**
  * NetworkIQ Background Service Worker
- * Handles API calls, authentication, and tracking
+ * Progressive build - adding functionality step by step
  */
 
+console.log('NetworkIQ Service Worker loaded');
+
 // Configuration
-// For testing: Use localhost, then update to production URL when deployed
-const API_BASE_URL = 'http://localhost:8000/api'; // Change to production URL when deployed
-// Production example: 'https://api.networkiq.ai/api'
+const API_BASE_URL = 'http://localhost:8000/api';
 
-const STRIPE_CHECKOUT_URL = 'https://checkout.stripe.com/c/pay/';
-
-// State
+// State management
 let userState = {
   isAuthenticated: false,
   subscription: 'free',
@@ -22,10 +20,7 @@ let userState = {
 // Initialize on install
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    // Open onboarding page
-    chrome.tabs.create({
-      url: 'https://networkiq.ai/welcome'
-    });
+    console.log('NetworkIQ extension installed successfully!');
     
     // Set default settings
     chrome.storage.sync.set({
@@ -35,41 +30,10 @@ chrome.runtime.onInstalled.addListener((details) => {
         autoGenerate: false
       }
     });
-    
-    // Track installation
-    trackEvent('extension_installed');
   }
 });
 
-// Handle messages from content scripts
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  switch (request.action) {
-    case 'api_call':
-      handleAPICall(request.endpoint, request.data)
-        .then(sendResponse)
-        .catch(error => sendResponse({ error: error.message }));
-      return true; // Will respond asynchronously
-      
-    case 'track':
-      trackEvent(request.event, request.data);
-      sendResponse({ success: true });
-      break;
-      
-    case 'check_auth':
-      sendResponse({ isAuthenticated: userState.isAuthenticated, subscription: userState.subscription });
-      break;
-      
-    case 'open_checkout':
-      openStripeCheckout(request.priceId);
-      sendResponse({ success: true });
-      break;
-      
-    default:
-      sendResponse({ error: 'Unknown action' });
-  }
-});
-
-// API call handler with improved error handling
+// API call handler with error handling
 async function handleAPICall(endpoint, data) {
   try {
     const headers = {
@@ -145,46 +109,6 @@ async function handleAPICall(endpoint, data) {
   }
 }
 
-// Track events
-async function trackEvent(event, data = {}) {
-  try {
-    // Add user context
-    const eventData = {
-      ...data,
-      userId: userState.userId,
-      subscription: userState.subscription,
-      timestamp: new Date().toISOString()
-    };
-    
-    // Send to analytics API
-    await fetch(`${API_BASE_URL}/analytics/track`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        event: event,
-        data: eventData
-      })
-    });
-    
-    // Also store locally for offline analytics
-    chrome.storage.local.get(['analytics'], (result) => {
-      const analytics = result.analytics || [];
-      analytics.push({ event, data: eventData });
-      
-      // Keep only last 100 events
-      if (analytics.length > 100) {
-        analytics.shift();
-      }
-      
-      chrome.storage.local.set({ analytics });
-    });
-  } catch (error) {
-    console.error('Failed to track event:', error);
-  }
-}
-
 // Update usage tracking
 function updateUsageTracking() {
   const today = new Date().toDateString();
@@ -208,30 +132,60 @@ function updateUsageTracking() {
   });
 }
 
-// Open Stripe checkout
-function openStripeCheckout(priceId) {
-  // Create checkout session via API
-  fetch(`${API_BASE_URL}/payments/create-checkout`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${userState.token}`
-    },
-    body: JSON.stringify({
-      priceId: priceId,
-      userId: userState.userId
-    })
-  })
-  .then(response => response.json())
-  .then(data => {
-    // Open Stripe checkout in new tab
-    chrome.tabs.create({
-      url: data.checkoutUrl
+// Get today's usage
+function getTodayUsage(callback) {
+  const today = new Date().toDateString();
+  
+  chrome.storage.local.get(['usage'], (result) => {
+    const usage = result.usage || {};
+    const todayCount = usage[today] || 0;
+    
+    // Return counts based on what was tracked
+    callback({
+      scores: todayCount,
+      messages: Math.floor(todayCount / 3) // Rough estimate
     });
-  })
-  .catch(error => {
-    console.error('Failed to create checkout session:', error);
   });
+}
+
+// Open Stripe checkout
+async function openStripeCheckout(priceId) {
+  try {
+    // Create checkout session via API
+    const response = await fetch(`${API_BASE_URL}/payments/create-checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': userState.token ? `Bearer ${userState.token}` : ''
+      },
+      body: JSON.stringify({
+        priceId: priceId,
+        userId: userState.userId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to create checkout session');
+    }
+    
+    const data = await response.json();
+    
+    // Open Stripe checkout in new tab
+    if (data.checkoutUrl) {
+      chrome.tabs.create({
+        url: data.checkoutUrl
+      });
+    } else {
+      console.error('No checkout URL returned');
+    }
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    // Notify popup of error
+    chrome.runtime.sendMessage({
+      action: 'checkout_error',
+      message: error.message
+    });
+  }
 }
 
 // Check authentication status
@@ -240,8 +194,18 @@ async function checkAuthStatus() {
     const result = await chrome.storage.sync.get(['token', 'userId', 'email']);
     
     if (result.token) {
-      // Verify token with API
-      const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+      // For now, just use stored data
+      // TODO: Verify token with API when /auth/verify endpoint is ready
+      userState = {
+        isAuthenticated: true,
+        subscription: 'free', // Default, will be updated from API
+        email: result.email,
+        userId: result.userId,
+        token: result.token
+      };
+      
+      // Try to get user info from API
+      const response = await fetch(`${API_BASE_URL}/auth/user`, {
         headers: {
           'Authorization': `Bearer ${result.token}`
         }
@@ -249,27 +213,17 @@ async function checkAuthStatus() {
       
       if (response.ok) {
         const data = await response.json();
-        userState = {
-          isAuthenticated: true,
-          subscription: data.subscription || 'free',
-          email: data.email,
-          userId: data.userId,
-          token: result.token
-        };
-        
-        // Update badge based on subscription
+        userState.subscription = data.subscription_tier || 'free';
         updateExtensionBadge();
-      } else {
-        // Token invalid, clear it
-        chrome.storage.sync.remove(['token', 'userId', 'email']);
-        userState = {
-          isAuthenticated: false,
-          subscription: 'free',
-          email: null,
-          userId: null,
-          token: null
-        };
       }
+    } else {
+      userState = {
+        isAuthenticated: false,
+        subscription: 'free',
+        email: null,
+        userId: null,
+        token: null
+      };
     }
   } catch (error) {
     console.error('Failed to check auth status:', error);
@@ -278,7 +232,7 @@ async function checkAuthStatus() {
 
 // Update extension badge
 function updateExtensionBadge() {
-  if (userState.subscription === 'pro' || userState.subscription === 'team') {
+  if (userState.subscription === 'advanced' || userState.subscription === 'basic') {
     chrome.action.setBadgeText({ text: 'PRO' });
     chrome.action.setBadgeBackgroundColor({ color: '#8B5CF6' });
   } else {
@@ -286,66 +240,99 @@ function updateExtensionBadge() {
   }
 }
 
-// Listen for tab updates to inject content scripts
+// Handle messages from content scripts and popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Message received:', request);
+  
+  switch (request.action) {
+    case 'api_call':
+      handleAPICall(request.endpoint, request.data)
+        .then(sendResponse)
+        .catch(error => sendResponse({ error: error.message }));
+      return true; // Will respond asynchronously
+      
+    case 'track':
+      // Simple console logging for now (analytics endpoint doesn't exist)
+      console.log('Event tracked:', request.event, request.data);
+      sendResponse({ success: true });
+      break;
+      
+    case 'check_auth':
+      sendResponse({ 
+        isAuthenticated: userState.isAuthenticated, 
+        subscription: userState.subscription,
+        email: userState.email
+      });
+      break;
+      
+    case 'getTodayUsage':
+      getTodayUsage((usage) => {
+        sendResponse(usage);
+      });
+      return true; // Will respond asynchronously
+      
+    case 'open_checkout':
+      openStripeCheckout(request.priceId);
+      sendResponse({ success: true });
+      break;
+      
+    case 'login':
+      // Store auth data
+      userState = {
+        isAuthenticated: true,
+        subscription: request.subscription || 'free',
+        email: request.email,
+        userId: request.userId,
+        token: request.token
+      };
+      chrome.storage.sync.set({
+        token: request.token,
+        userId: request.userId,
+        email: request.email
+      });
+      updateExtensionBadge();
+      sendResponse({ success: true });
+      break;
+      
+    case 'logout':
+      // Clear auth data
+      userState = {
+        isAuthenticated: false,
+        subscription: 'free',
+        email: null,
+        userId: null,
+        token: null
+      };
+      chrome.storage.sync.remove(['token', 'userId', 'email']);
+      updateExtensionBadge();
+      sendResponse({ success: true });
+      break;
+      
+    default:
+      sendResponse({ error: 'Unknown action' });
+  }
+  
+  return false; // Default to synchronous response
+});
+
+// Listen for tab updates
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url?.includes('linkedin.com')) {
-    // Content scripts are already injected via manifest
-    // This is just for tracking active LinkedIn tabs
-    trackEvent('linkedin_tab_opened', { url: tab.url });
+    console.log('LinkedIn tab detected:', tab.url);
+    // Content scripts are injected via manifest
   }
 });
 
-// Handle extension icon click
-chrome.action.onClicked.addListener((tab) => {
-  // Open popup is handled by manifest
-  // This is a fallback if popup is not set
-  chrome.tabs.create({
-    url: 'https://networkiq.ai/dashboard'
-  });
-});
-
-// Periodic tasks
+// Periodic auth check (every 60 minutes)
 chrome.alarms.create('checkAuth', { periodInMinutes: 60 });
-chrome.alarms.create('syncData', { periodInMinutes: 5 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  switch (alarm.name) {
-    case 'checkAuth':
-      checkAuthStatus();
-      break;
-    case 'syncData':
-      syncLocalData();
-      break;
+  if (alarm.name === 'checkAuth') {
+    checkAuthStatus();
   }
 });
-
-// Sync local data with server
-async function syncLocalData() {
-  if (!userState.isAuthenticated) return;
-  
-  try {
-    // Get local analytics
-    const result = await chrome.storage.local.get(['analytics']);
-    const analytics = result.analytics || [];
-    
-    if (analytics.length > 0) {
-      // Send to server
-      await fetch(`${API_BASE_URL}/analytics/batch`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userState.token}`
-        },
-        body: JSON.stringify({ events: analytics })
-      });
-      
-      // Clear local analytics
-      chrome.storage.local.set({ analytics: [] });
-    }
-  } catch (error) {
-    console.error('Failed to sync data:', error);
-  }
-}
 
 // Initialize on startup
 checkAuthStatus();
+
+console.log('Service worker setup complete');
