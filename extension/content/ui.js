@@ -377,11 +377,32 @@ class NetworkIQUI {
   async injectSearchScores() {
     // Enhanced batch scoring for search results
     console.log('NetworkIQ: Starting batch scoring for search results...');
+    console.log('NetworkIQ: Current URL:', window.location.href);
+    
+    // Debug: Check what elements exist on the page
+    const debugSelectors = [
+      '.entity-result__item',
+      '[data-view-name="search-entity-result-universal-template"]',
+      '.reusable-search__result-container',
+      'a[href*="/in/"]'
+    ];
+    
+    debugSelectors.forEach(selector => {
+      const count = document.querySelectorAll(selector).length;
+      if (count > 0) {
+        console.log(`NetworkIQ: Found ${count} elements with selector: ${selector}`);
+      }
+    });
     
     // Get all profiles from search results
     const profiles = LinkedInParser.getSearchResultProfiles();
+    console.log(`NetworkIQ: Parser found ${profiles.length} profiles`);
+    
     if (profiles.length === 0) {
       console.log('NetworkIQ: No profiles found on search page');
+      // Try alternative approach - just look for profile links
+      const profileLinks = document.querySelectorAll('a[href*="/in/"]');
+      console.log(`NetworkIQ: Found ${profileLinks.length} profile links on page`);
       return;
     }
     

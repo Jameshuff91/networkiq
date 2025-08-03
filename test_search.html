@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test NetworkIQ Search Features</title>
+</head>
+<body>
+    <h1>NetworkIQ Search Page Testing</h1>
+    <p>Open this in Chrome DevTools Console on a LinkedIn search page:</p>
+    
+    <pre>
+// 1. Check if we're on a search page
+console.log('Current URL:', window.location.href);
+console.log('Is search page?', window.location.href.includes('/search/'));
+
+// 2. Try to find search result cards with different selectors
+const selectors = [
+    '.entity-result__item',
+    '.reusable-search__result-container',
+    'li[class*="reusable-search__result-container"]',
+    'div[data-chameleon-result-urn]',
+    // New selectors to try
+    '.search-result__wrapper',
+    '.search-results__list > li',
+    '.pv-search-results-list > li',
+    '[data-view-name="search-entity-result-universal-template"]'
+];
+
+selectors.forEach(selector => {
+    const found = document.querySelectorAll(selector);
+    if (found.length > 0) {
+        console.log(`✅ Found ${found.length} elements with selector: ${selector}`);
+    }
+});
+
+// 3. Try to find profile links
+const profileLinks = document.querySelectorAll('a[href*="/in/"]');
+console.log(`Found ${profileLinks.length} profile links`);
+
+// 4. Manual test - find any element that looks like a search result
+const allElements = document.querySelectorAll('*');
+const searchResultElements = Array.from(allElements).filter(el => {
+    const className = el.className || '';
+    return className.includes('entity-result') || 
+           className.includes('search-result') ||
+           className.includes('reusable-search');
+});
+console.log('Elements with search-related classes:', searchResultElements);
+
+// 5. Force the batch scoring to run
+console.log('Forcing batch scoring...');
+if (window.NetworkIQUI) {
+    new NetworkIQUI().injectSearchScores();
+} else {
+    console.log('NetworkIQUI not loaded');
+}
+    </pre>
+</body>
+</html>

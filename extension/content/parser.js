@@ -245,7 +245,10 @@ class LinkedInParser {
       '.entity-result__item, ' +
       '.reusable-search__result-container, ' + 
       'li[class*="reusable-search__result-container"], ' +
-      'div[data-chameleon-result-urn]'
+      'div[data-chameleon-result-urn], ' +
+      '[data-view-name="search-entity-result-universal-template"], ' +
+      '.search-results__list > li, ' +
+      '.pv-search-results-list > li'
     );
     
     resultCards.forEach(card => {
