@@ -316,28 +316,26 @@ async function handleResumeUpload(event) {
 // Extract text from DOCX files
 async function extractDocxText(file) {
   try {
-    // DOCX files are actually ZIP archives containing XML
-    // We'll read it as an ArrayBuffer and extract the text
+    // For large DOCX files, we need a better approach
+    // Try to get the plain text by looking for readable content
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
-    
-    // Simple approach: look for text content in the binary
-    // DOCX stores text in document.xml inside the ZIP
-    // We'll extract readable text using a simple pattern
     
     let text = '';
     const decoder = new TextDecoder('utf-8', { fatal: false });
     
-    // Convert to string and extract text between XML tags
+    // Convert to string - this will have XML and binary mixed
     const fullContent = decoder.decode(uint8Array);
     
-    // Extract text using regex patterns
-    // Look for text between <w:t> tags (Word text elements)
+    // First try: Look for text between <w:t> tags (Word text elements)
     const textMatches = fullContent.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
-    if (textMatches) {
+    if (textMatches && textMatches.length > 10) {
       text = textMatches
         .map(match => match.replace(/<[^>]+>/g, ''))
+        .filter(t => t.trim().length > 0)
         .join(' ');
+      
+      console.log(`Extracted ${text.length} chars from XML tags`);
     }
     
     // If that didn't work, try a simpler approach
@@ -373,10 +371,28 @@ async function extractDocxText(file) {
         .join(' ');
     }
     
-    // Clean up the extracted text
+    // Look for resume-like content patterns in the full text
+    // Resume text often appears after the XML/binary content
+    // Look for common resume keywords or email patterns
+    const resumeStart = fullContent.search(/\b(SUMMARY|EXPERIENCE|EDUCATION|SKILLS|PROFESSIONAL|WORK\s+HISTORY|EMPLOYMENT|[A-Z][a-z]+ [A-Z][a-z]+[\s\S]{0,50}\w+@\w+\.\w+)/i);
+    if (resumeStart > 0) {
+      // Extract from where real resume content starts
+      const resumeContent = fullContent.substring(resumeStart);
+      // Clean it up
+      text = resumeContent
+        .replace(/<[^>]*>/g, '') // Remove XML tags
+        .replace(/[^\x20-\x7E\s]/g, ' ') // Keep only printable chars
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .substring(0, 50000) // Limit to 50k chars
+        .trim();
+      
+      console.log('Found resume content starting at position', resumeStart);
+    }
+    
+    // Final cleanup
     text = text
       .replace(/\s+/g, ' ') // Normalize whitespace
-      .replace(/[^\x20-\x7E\xA0-\xFF]/g, '') // Remove non-printable
+      .replace(/([A-Z]{2,})\s+([A-Z]{2,})/g, '$1 $2') // Fix spacing between acronyms
       .trim();
     
     console.log(`Extracted ${text.length} characters from DOCX`);

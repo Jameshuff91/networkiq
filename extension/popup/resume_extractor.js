@@ -59,14 +59,16 @@ class ResumeExtractor {
     
     // Extract education - look for universities and academies
     const educationPatterns = [
+      /United States Air Force Academy/gi,
       /air force academy|usafa|u\.s\. air force academy/gi,
+      /Johns Hopkins/gi,
       /naval academy|usna|u\.s\. naval academy/gi,
       /west point|usma|military academy/gi,
       /coast guard academy/gi,
       /\b(university|college|institute|academy)\s+of\s+[\w\s]+/gi,
       /\b[\w\s]+\s+(university|college|institute|academy)\b/gi,
       /\b(mit|stanford|harvard|yale|princeton|columbia|berkeley|ucla|usc)\b/gi,
-      /\b(bachelor|master|phd|doctorate|mba|bs|ba|ms|ma)\b[\s\w]*\b(computer science|engineering|business|mathematics|physics)/gi
+      /\b(bachelor|master|phd|doctorate|mba|bs|ba|ms|ma)\b[\s\w]*\b(computer science|engineering|business|mathematics|physics|economics|government)/gi
     ];
 
     educationPatterns.forEach(pattern => {
@@ -83,6 +85,9 @@ class ResumeExtractor {
 
     // Extract companies - look for company names
     const companyPatterns = [
+      /\bC3\.?AI|C3 AI\b/gi,  // Your current company!
+      /\bPolco\b/gi,
+      /\bMarque Ventures\b/gi,
       /\b(google|amazon|microsoft|apple|facebook|meta|netflix|tesla|spacex)\b/gi,
       /\b(anthropic|openai|deepmind|palantir|anduril|shield ai)\b/gi,
       /\b(lockheed martin|boeing|northrop grumman|raytheon|general dynamics|bae systems)\b/gi,
@@ -106,15 +111,19 @@ class ResumeExtractor {
 
     // Extract military service
     const militaryPatterns = [
-      /air force|usaf|united states air force/gi,
-      /army|usa|united states army/gi,
+      /\bU\.S\. Air Force|United States Air Force|USAF\b/gi,
+      /\bRAF Mildenhall|Travis AFB\b/gi,  // Your bases
+      /\bTS\/SCI|Top Secret|Security Clearance\b/gi,  // Your clearance
+      /\bInstructor Pilot|Aircraft Commander\b/gi,  // Your roles
+      /air force|usaf/gi,
+      /army|united states army/gi,
       /navy|usn|united states navy/gi,
       /marine|usmc|marine corps/gi,
       /coast guard|uscg/gi,
       /space force|ussf/gi,
       /\b(captain|major|colonel|lieutenant|general|admiral|commander|sergeant|airman|seaman|officer)\b/gi,
       /\b(veteran|military|active duty|reserves|national guard)\b/gi,
-      /\b(deployment|combat|operation\s+\w+|OIF|OEF|desert storm)\b/gi
+      /\b(deployment|combat|operation\s+\w+|OIF|OEF|desert storm|NATO)\b/gi
     ];
 
     militaryPatterns.forEach(pattern => {
