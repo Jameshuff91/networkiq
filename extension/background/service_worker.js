@@ -69,7 +69,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// API call handler
+// API call handler with improved error handling
 async function handleAPICall(endpoint, data) {
   try {
     const headers = {
@@ -88,7 +88,33 @@ async function handleAPICall(endpoint, data) {
     });
     
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      
+      // Handle specific error codes
+      if (response.status === 429) {
+        return {
+          error: true,
+          message: errorData.detail || 'Daily limit reached. Upgrade to Pro!',
+          code: 'RATE_LIMIT'
+        };
+      } else if (response.status === 401) {
+        userState.isAuthenticated = false;
+        userState.token = null;
+        chrome.storage.sync.remove('authToken');
+        return {
+          error: true,
+          message: 'Please sign in to continue',
+          code: 'UNAUTHORIZED'
+        };
+      } else if (response.status === 503) {
+        return {
+          error: true,
+          message: 'Service temporarily unavailable',
+          code: 'SERVICE_UNAVAILABLE'
+        };
+      }
+      
+      throw new Error(errorData.detail || `API error: ${response.status}`);
     }
     
     const result = await response.json();
@@ -101,7 +127,21 @@ async function handleAPICall(endpoint, data) {
     return result;
   } catch (error) {
     console.error('API call failed:', error);
-    throw error;
+    
+    // Network error handling
+    if (error.message.includes('Failed to fetch')) {
+      return {
+        error: true,
+        message: 'Cannot connect to server. Try Test Mode!',
+        code: 'NETWORK_ERROR'
+      };
+    }
+    
+    return {
+      error: true,
+      message: error.message,
+      code: 'UNKNOWN_ERROR'
+    };
   }
 }
 
