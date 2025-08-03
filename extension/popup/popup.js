@@ -145,37 +145,81 @@ async function handleResumeUpload(event) {
     return;
   }
   
-  // Validate file size (5MB max)
-  if (file.size > 5 * 1024 * 1024) {
-    showStatus('File size must be less than 5MB', 'error');
+  // Validate file size (10MB max)
+  if (file.size > 10 * 1024 * 1024) {
+    showStatus('File size must be less than 10MB', 'error');
     return;
   }
   
   // Get auth token
-  const result = await chrome.storage.local.get(['authToken']);
-  if (!result.authToken) {
-    showStatus('Please login to upload resume', 'error');
-    showLoginUI();
-    return;
-  }
+  const result = await chrome.storage.local.get(['authToken', 'testMode']);
   
   // Show loading status
-  showStatus('Uploading and analyzing resume...', 'loading');
-  document.getElementById('uploadBtnText').textContent = 'Uploading...';
-  
-  // Create form data
-  const formData = new FormData();
-  formData.append('file', file);
+  showStatus('Analyzing resume locally...', 'loading');
+  document.getElementById('uploadBtnText').textContent = 'Processing...';
   
   try {
-    // Upload to backend
-    const response = await fetch(`${API_BASE_URL}/resume/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${result.authToken}`
-      },
-      body: formData
-    });
+    let extractedElements = null;
+    let needsBackendProcessing = false;
+    
+    // Try to extract text locally first
+    if (fileExt === '.txt') {
+      // Text files can be processed locally
+      const text = await file.text();
+      extractedElements = ResumeExtractor.extractKeyElements(text);
+      console.log('Extracted elements locally:', extractedElements);
+    } else if (fileExt === '.docx' && file.size > 5 * 1024 * 1024) {
+      // Large DOCX - try to extract key elements from what we can read
+      // For now, we'll need backend processing for DOCX
+      needsBackendProcessing = true;
+    } else {
+      // PDF and DOC files need backend processing (for OCR and parsing)
+      needsBackendProcessing = true;
+    }
+    
+    // If we extracted locally, just save the search elements
+    if (extractedElements && !needsBackendProcessing) {
+      const searchElements = ResumeExtractor.createSearchElements(extractedElements);
+      
+      // Store in chrome storage
+      await chrome.storage.local.set({
+        searchElements: searchElements,
+        resumeData: {
+          ...extractedElements,
+          search_elements: searchElements
+        },
+        resumeUploadedAt: new Date().toISOString()
+      });
+      
+      // Show success
+      showStatus('Resume analyzed successfully!', 'success');
+      document.getElementById('uploadBtnText').textContent = 'Update Resume';
+      
+      // Display summary
+      showResumeStatus({
+        ...extractedElements,
+        search_elements: searchElements.length
+      });
+      
+      // Notify content scripts
+      notifyContentScripts(searchElements);
+      
+    } else if (result.authToken && !result.testMode) {
+      // Need backend processing for PDF (OCR) or DOCX parsing
+      showStatus('Processing resume with advanced extraction...', 'loading');
+      
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Upload to backend
+      const response = await fetch(`${API_BASE_URL}/resume/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${result.authToken}`
+        },
+        body: formData
+      });
     
     if (!response.ok) {
       const error = await response.json();
@@ -197,23 +241,71 @@ async function handleResumeUpload(event) {
     // Display resume summary
     showResumeStatus(data.data);
     
-    // Notify content scripts to update scoring
-    chrome.tabs.query({}, (tabs) => {
-      tabs.forEach(tab => {
-        if (tab.url?.includes('linkedin.com')) {
-          chrome.tabs.sendMessage(tab.id, { 
-            action: 'updateScoringElements',
-            data: data.data
-          }).catch(() => {}); // Ignore errors for tabs without content script
-        }
+    // Notify content scripts
+    notifyContentScripts(data.data.search_elements);
+    
+    } else {
+      // Test mode - process locally only
+      showStatus('Processing resume in test mode...', 'loading');
+      
+      // Try to read the file as text for test mode
+      let text = '';
+      if (fileExt === '.txt') {
+        text = await file.text();
+      } else {
+        // For other formats in test mode, show a message
+        showStatus('For best results with DOCX/PDF, please convert to TXT or enable backend', 'error');
+        document.getElementById('uploadBtnText').textContent = 'Choose Resume File';
+        return;
+      }
+      
+      // Extract elements
+      const extractedElements = ResumeExtractor.extractKeyElements(text);
+      const searchElements = ResumeExtractor.createSearchElements(extractedElements);
+      
+      // Store in chrome storage
+      await chrome.storage.local.set({
+        searchElements: searchElements,
+        resumeData: {
+          ...extractedElements,
+          search_elements: searchElements
+        },
+        resumeUploadedAt: new Date().toISOString()
       });
-    });
+      
+      // Show success
+      showStatus('Resume analyzed successfully!', 'success');
+      document.getElementById('uploadBtnText').textContent = 'Update Resume';
+      
+      // Display summary
+      showResumeStatus({
+        ...extractedElements,
+        search_elements: searchElements.length
+      });
+      
+      // Notify content scripts
+      notifyContentScripts(searchElements);
+    }
     
   } catch (error) {
     console.error('Upload error:', error);
-    showStatus(error.message || 'Failed to upload resume', 'error');
+    showStatus(error.message || 'Failed to process resume', 'error');
     document.getElementById('uploadBtnText').textContent = 'Choose Resume File';
   }
+}
+
+// Helper function to notify content scripts
+function notifyContentScripts(searchElements) {
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach(tab => {
+      if (tab.url?.includes('linkedin.com')) {
+        chrome.tabs.sendMessage(tab.id, { 
+          action: 'updateScoringElements',
+          data: { search_elements: searchElements }
+        }).catch(() => {}); // Ignore errors for tabs without content script
+      }
+    });
+  });
 }
 
 function showResumeStatus(resumeData) {
