@@ -170,13 +170,9 @@ body {
 /* Settings Section */
 .settings-section {
   padding: 16px;
-  background: white;
+  background: #F8F9FA;
   border-top: 1px solid #E0E0E0;
-  display: none; /* Hidden by default, shown on click */
-}
-
-.settings-section.active {
-  display: block;
+  display: block; /* Always show resume upload section */
 }
 
 .settings-section h3 {
@@ -211,6 +207,67 @@ body {
   outline: none;
   border-color: #5E5ADB;
   box-shadow: 0 0 0 3px rgba(94, 90, 219, 0.1);
+}
+
+/* Resume Upload Styles */
+.helper-text {
+  font-size: 12px;
+  color: #7F8C8D;
+  margin-bottom: 12px;
+}
+
+.upload-status {
+  margin-top: 8px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.upload-status.success {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.upload-status.error {
+  background: #FFEBEE;
+  color: #C62828;
+}
+
+.upload-status.loading {
+  background: #E3F2FD;
+  color: #1565C0;
+}
+
+.resume-details {
+  margin-top: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #E0E0E0;
+}
+
+.resume-details h4 {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #2C3E50;
+}
+
+.resume-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.resume-item-label {
+  color: #7F8C8D;
+  font-weight: 500;
+}
+
+#uploadResumeBtn {
+  width: 100%;
+  margin-top: 8px;
 }
 
 /* Upgrade Section */
