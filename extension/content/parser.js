@@ -243,8 +243,8 @@ class LinkedInParser {
   static getSearchResultProfiles() {
     const profiles = [];
     
-    // Get all search result cards - LinkedIn uses different structures
-    const resultCards = document.querySelectorAll(
+    // First try standard selectors
+    let resultCards = document.querySelectorAll(
       '.entity-result__item, ' +
       '.reusable-search__result-container, ' + 
       'li[class*="reusable-search__result-container"], ' +
@@ -253,6 +253,36 @@ class LinkedInParser {
       '.search-results__list > li, ' +
       '.pv-search-results-list > li'
     );
+    
+    // If no results found, try finding cards by working up from profile links
+    if (resultCards.length === 0) {
+      console.log('NetworkIQ: Standard selectors failed, trying profile link approach...');
+      const profileLinks = document.querySelectorAll('a[href*="/in/"]');
+      const uniqueCards = new Set();
+      
+      profileLinks.forEach(link => {
+        // Walk up to find the container card (usually 3-5 levels up)
+        let card = link;
+        for (let i = 0; i < 6; i++) {
+          card = card.parentElement;
+          if (card && card.tagName === 'LI') {
+            uniqueCards.add(card);
+            break;
+          }
+          // Also check for DIV containers with result-like classes
+          if (card && card.className && 
+              (card.className.includes('result') || 
+               card.className.includes('search') ||
+               card.className.includes('entity'))) {
+            uniqueCards.add(card);
+            break;
+          }
+        }
+      });
+      
+      resultCards = Array.from(uniqueCards);
+      console.log(`NetworkIQ: Found ${resultCards.length} cards via profile link approach`);
+    }
     
     resultCards.forEach(card => {
       // Find the main profile link
