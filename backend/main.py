@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import stripe
 import os
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 import json
 import pickle
 from pathlib import Path
@@ -239,24 +239,22 @@ async def get_user(current_user: dict = Depends(get_current_user)):
 
 @app.post("/api/resume/upload")
 async def upload_resume(
-    file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    file: UploadFile = File(...), current_user: dict = Depends(get_current_user)
 ):
     """Upload and parse user's resume"""
     # Validate file type
-    if not file.filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
+    if not file.filename.lower().endswith((".pdf", ".docx", ".doc", ".txt")):
         raise HTTPException(
-            status_code=400,
-            detail="Invalid file type. Please upload PDF, DOCX, or TXT file"
+            status_code=400, detail="Invalid file type. Please upload PDF, DOCX, or TXT file"
         )
-    
+
     # Read file content
     content = await file.read()
-    
+
     # Parse resume
     try:
         parsed_data = parse_resume_file(content, file.filename)
-        
+
         # Store parsed resume data in user profile
         user_email = current_user["email"]
         if user_email in users_db:
@@ -266,10 +264,10 @@ async def upload_resume(
                 "skills": parsed_data.get("skills", []),
                 "education": parsed_data.get("education", []),
                 "military": parsed_data.get("military_service"),
-                "search_elements": parsed_data.get("search_elements", [])
+                "search_elements": parsed_data.get("search_elements", []),
             }
             save_db("users", users_db)
-        
+
         return {
             "success": True,
             "message": "Resume uploaded and parsed successfully",
@@ -278,20 +276,15 @@ async def upload_resume(
                 "skills": len(parsed_data.get("skills", [])),
                 "education": parsed_data.get("education", []),
                 "military": bool(parsed_data.get("military_service")),
-                "search_elements": len(parsed_data.get("search_elements", []))
-            }
+                "search_elements": len(parsed_data.get("search_elements", [])),
+            },
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to parse resume: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to parse resume: {str(e)}")
 
 
 @app.post("/api/profiles/score")
-async def score_profile(
-    profile: ProfileScore, current_user: dict = Depends(get_current_user)
-):
+async def score_profile(profile: ProfileScore, current_user: dict = Depends(get_current_user)):
     """Score a LinkedIn profile"""
     # Check usage limits for free tier
     user_id = current_user["id"]
@@ -317,11 +310,11 @@ async def score_profile(
     connections = []
 
     profile_text = json.dumps(profile.profile_data).lower()
-    
+
     # Get user's search elements from their resume
     user_background = current_user.get("background", {})
     search_elements = user_background.get("search_elements", [])
-    
+
     # If no resume uploaded, use some default matching
     if not search_elements:
         # Default scoring for users without resume
@@ -334,25 +327,25 @@ async def score_profile(
     else:
         # Dynamic scoring based on user's resume
         matched_elements = []
-        
+
         for element in search_elements:
             # Check if this element matches the profile
             if element["value"].lower() in profile_text:
                 score += element["weight"]
                 matched_elements.append(element)
-                
+
                 # Add to breakdown by category
                 category = element["category"]
                 if category not in breakdown:
                     breakdown[category] = 0
                 breakdown[category] += element["weight"]
-                
+
                 # Add to connections for display
                 connections.append(element["display"])
-        
+
         # Limit connections to top 3 for display
         connections = connections[:3]
-        
+
         # Bonus points for multiple matches in same category
         if len(matched_elements) >= 3:
             score += 10  # Bonus for strong alignment
@@ -481,9 +474,7 @@ async def generate_message(
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate message: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to generate message: {str(e)}")
 
 
 @app.post("/api/payments/create-checkout")
@@ -526,9 +517,7 @@ async def stripe_webhook(request: Request):
     sig_header = request.headers.get("stripe-signature")
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid payload")
     except stripe.error.SignatureVerificationError:
