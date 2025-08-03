@@ -168,10 +168,17 @@ async function handleResumeUpload(event) {
       const text = await file.text();
       extractedElements = ResumeExtractor.extractKeyElements(text);
       console.log('Extracted elements locally:', extractedElements);
-    } else if (fileExt === '.docx' && file.size > 5 * 1024 * 1024) {
-      // Large DOCX - try to extract key elements from what we can read
-      // For now, we'll need backend processing for DOCX
-      needsBackendProcessing = true;
+    } else if (fileExt === '.docx') {
+      // DOCX files - extract text directly
+      showStatus('Extracting text from Word document...', 'loading');
+      const text = await extractDocxText(file);
+      if (text) {
+        extractedElements = ResumeExtractor.extractKeyElements(text);
+        console.log('Extracted elements from DOCX:', extractedElements);
+      } else {
+        // Fallback to backend if extraction fails
+        needsBackendProcessing = true;
+      }
     } else {
       // PDF and DOC files need backend processing (for OCR and parsing)
       needsBackendProcessing = true;
@@ -245,22 +252,34 @@ async function handleResumeUpload(event) {
     notifyContentScripts(data.data.search_elements);
     
     } else {
-      // Test mode - process locally only
-      showStatus('Processing resume in test mode...', 'loading');
+      // Test mode or no backend - process locally only
+      showStatus('Processing resume locally...', 'loading');
       
-      // Try to read the file as text for test mode
+      // Try to extract text based on file type
       let text = '';
+      let extractedElements = null;
+      
       if (fileExt === '.txt') {
         text = await file.text();
+        extractedElements = ResumeExtractor.extractKeyElements(text);
+      } else if (fileExt === '.docx') {
+        // Try to extract from DOCX
+        text = await extractDocxText(file);
+        if (text) {
+          extractedElements = ResumeExtractor.extractKeyElements(text);
+        } else {
+          showStatus('Could not extract text from DOCX. Please try saving as TXT file.', 'error');
+          document.getElementById('uploadBtnText').textContent = 'Choose Resume File';
+          return;
+        }
       } else {
-        // For other formats in test mode, show a message
-        showStatus('For best results with DOCX/PDF, please convert to TXT or enable backend', 'error');
+        // PDF files would need backend
+        showStatus('PDF files require backend processing. Please convert to TXT or DOCX.', 'error');
         document.getElementById('uploadBtnText').textContent = 'Choose Resume File';
         return;
       }
       
-      // Extract elements
-      const extractedElements = ResumeExtractor.extractKeyElements(text);
+      // Create search elements
       const searchElements = ResumeExtractor.createSearchElements(extractedElements);
       
       // Store in chrome storage
@@ -291,6 +310,87 @@ async function handleResumeUpload(event) {
     console.error('Upload error:', error);
     showStatus(error.message || 'Failed to process resume', 'error');
     document.getElementById('uploadBtnText').textContent = 'Choose Resume File';
+  }
+}
+
+// Extract text from DOCX files
+async function extractDocxText(file) {
+  try {
+    // DOCX files are actually ZIP archives containing XML
+    // We'll read it as an ArrayBuffer and extract the text
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Simple approach: look for text content in the binary
+    // DOCX stores text in document.xml inside the ZIP
+    // We'll extract readable text using a simple pattern
+    
+    let text = '';
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    
+    // Convert to string and extract text between XML tags
+    const fullContent = decoder.decode(uint8Array);
+    
+    // Extract text using regex patterns
+    // Look for text between <w:t> tags (Word text elements)
+    const textMatches = fullContent.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
+    if (textMatches) {
+      text = textMatches
+        .map(match => match.replace(/<[^>]+>/g, ''))
+        .join(' ');
+    }
+    
+    // If that didn't work, try a simpler approach
+    // Extract any readable ASCII/UTF-8 text
+    if (!text || text.length < 100) {
+      const chunks = [];
+      let currentChunk = '';
+      
+      for (let i = 0; i < uint8Array.length; i++) {
+        const byte = uint8Array[i];
+        // Readable ASCII and extended characters
+        if ((byte >= 32 && byte <= 126) || (byte >= 160 && byte <= 255)) {
+          currentChunk += String.fromCharCode(byte);
+        } else if (currentChunk.length > 3) {
+          // Save chunks of readable text
+          chunks.push(currentChunk);
+          currentChunk = '';
+        } else {
+          currentChunk = '';
+        }
+      }
+      
+      if (currentChunk.length > 3) {
+        chunks.push(currentChunk);
+      }
+      
+      // Filter and join chunks that look like actual text
+      text = chunks
+        .filter(chunk => {
+          // Keep chunks that look like words/sentences
+          return chunk.length > 5 && /[a-zA-Z]{2,}/.test(chunk);
+        })
+        .join(' ');
+    }
+    
+    // Clean up the extracted text
+    text = text
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/[^\x20-\x7E\xA0-\xFF]/g, '') // Remove non-printable
+      .trim();
+    
+    console.log(`Extracted ${text.length} characters from DOCX`);
+    
+    // Make sure we got enough text
+    if (text.length < 100) {
+      console.log('Not enough text extracted from DOCX, will try backend');
+      return null;
+    }
+    
+    return text;
+  } catch (error) {
+    console.error('Error extracting DOCX text:', error);
+    return null;
   }
 }
 
