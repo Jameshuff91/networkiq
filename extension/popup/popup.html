@@ -64,6 +64,34 @@
       <div id="resumeDetails" class="resume-details" style="display:none">
         <h4>Your Profile Summary</h4>
         <div id="resumeSummary"></div>
+        <button class="action-btn secondary" id="editWeightsBtn" style="display:none; margin-top: 10px;">
+          Edit Matching Weights
+        </button>
+        <div id="weightsEditor" class="weights-editor" style="display:none">
+          <h4>Customize Your Matching Criteria</h4>
+          <p class="helper-text">Add what you're looking for and set importance (0-50 points)</p>
+          
+          <div class="add-criteria-section">
+            <input type="text" id="newCriteriaInput" placeholder="e.g., Google, Python, Harvard, Navy SEAL" class="criteria-input">
+            <select id="newCriteriaCategory" class="criteria-select">
+              <option value="company">Company</option>
+              <option value="education">Education</option>
+              <option value="military">Military</option>
+              <option value="skills">Skill</option>
+              <option value="keywords">Keyword</option>
+            </select>
+            <input type="number" id="newCriteriaWeight" placeholder="Points" min="0" max="50" value="20" class="weight-input">
+            <button class="action-btn primary" id="addCriteriaBtn">+ Add</button>
+          </div>
+          
+          <div id="searchElementsList"></div>
+          
+          <div class="weights-actions">
+            <button class="action-btn primary" id="saveWeightsBtn">Save Changes</button>
+            <button class="action-btn secondary" id="cancelWeightsBtn">Cancel</button>
+            <button class="action-btn secondary" id="resetDefaultsBtn">Reset to Resume</button>
+          </div>
+        </div>
       </div>
     </div>
 

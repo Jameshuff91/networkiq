@@ -270,6 +270,221 @@ body {
   margin-top: 8px;
 }
 
+/* Weights Editor */
+.weights-editor {
+  margin-top: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #E0E0E0;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* Add Criteria Section */
+.add-criteria-section {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #F0F8FF;
+  border-radius: 6px;
+  border: 1px dashed #5E5ADB;
+}
+
+.criteria-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #D0D0D0;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.criteria-input:focus {
+  outline: none;
+  border-color: #5E5ADB;
+  box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.1);
+}
+
+.criteria-select {
+  padding: 6px 10px;
+  border: 1px solid #D0D0D0;
+  border-radius: 4px;
+  font-size: 13px;
+  background: white;
+  cursor: pointer;
+}
+
+.criteria-select:focus {
+  outline: none;
+  border-color: #5E5ADB;
+}
+
+#addCriteriaBtn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.weights-editor h4 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #2C3E50;
+}
+
+#searchElementsList {
+  margin-bottom: 16px;
+}
+
+.weight-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: #F8F9FA;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.weight-item:hover {
+  background: #E8E9EA;
+}
+
+.weight-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.weight-item-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #2C3E50;
+  margin-bottom: 2px;
+}
+
+.editable-label {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 2px 4px;
+  border-radius: 3px;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.editable-label:hover {
+  background: white;
+  border-color: #E0E0E0;
+}
+
+.editable-label:focus {
+  background: white;
+  border-color: #5E5ADB;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.1);
+}
+
+.weight-item-category {
+  font-size: 11px;
+  color: #7F8C8D;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.weight-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.delete-btn {
+  background: #FF5252;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.delete-btn:hover {
+  background: #D32F2F;
+}
+
+.weight-input {
+  width: 50px;
+  padding: 4px 8px;
+  border: 1px solid #D0D0D0;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.weight-input:focus {
+  outline: none;
+  border-color: #5E5ADB;
+  box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.1);
+}
+
+.weight-slider {
+  width: 100px;
+  cursor: pointer;
+}
+
+.weight-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.weight-badge.high {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.weight-badge.medium {
+  background: #FFF3E0;
+  color: #E65100;
+}
+
+.weight-badge.low {
+  background: #F3E5F5;
+  color: #6A1B9A;
+}
+
+.weights-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #E0E0E0;
+}
+
+.weights-actions button {
+  flex: 1;
+}
+
+/* Category groups in weights editor */
+.weight-category-group {
+  margin-bottom: 16px;
+}
+
+.weight-category-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7F8C8D;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #E8E9EA;
+}
+
 /* Upgrade Section */
 .upgrade-section {
   padding: 16px;

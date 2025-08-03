@@ -427,6 +427,7 @@ function notifyContentScripts(searchElements) {
 function showResumeStatus(resumeData) {
   const resumeDetails = document.getElementById('resumeDetails');
   const resumeSummary = document.getElementById('resumeSummary');
+  const editBtn = document.getElementById('editWeightsBtn');
   
   if (!resumeData) return;
   
@@ -492,8 +493,248 @@ function showResumeStatus(resumeData) {
   resumeSummary.innerHTML = summaryHTML;
   resumeDetails.style.display = 'block';
   
+  // Show edit button
+  if (editBtn) {
+    editBtn.style.display = 'block';
+    editBtn.addEventListener('click', () => showWeightsEditor(resumeData));
+  }
+  
   // Update button text to indicate resume is uploaded
   document.getElementById('uploadBtnText').textContent = 'Update Resume';
+}
+
+// Show the weights editor with current search elements
+async function showWeightsEditor(resumeData) {
+  const editor = document.getElementById('weightsEditor');
+  const editBtn = document.getElementById('editWeightsBtn');
+  
+  if (!editor) return;
+  
+  // Toggle visibility
+  if (editor.style.display === 'block') {
+    editor.style.display = 'none';
+    editBtn.textContent = 'Edit Matching Weights';
+    return;
+  }
+  
+  editor.style.display = 'block';
+  editBtn.textContent = 'Hide Editor';
+  
+  // Load current search elements
+  const result = await chrome.storage.local.get(['searchElements']);
+  const searchElements = result.searchElements || [];
+  
+  // Display current elements
+  displaySearchElements(searchElements);
+  
+  // Set up event listeners
+  setupWeightsEditorListeners(searchElements);
+}
+
+// Display search elements in the editor
+function displaySearchElements(searchElements) {
+  const container = document.getElementById('searchElementsList');
+  if (!container) return;
+  
+  // Group by category
+  const grouped = {};
+  searchElements.forEach(element => {
+    const category = element.category || 'keywords';
+    if (!grouped[category]) grouped[category] = [];
+    grouped[category].push(element);
+  });
+  
+  // Build HTML
+  let html = '';
+  Object.entries(grouped).forEach(([category, elements]) => {
+    html += `
+      <div class="weight-category-group">
+        <div class="weight-category-header">${category.toUpperCase()}</div>
+    `;
+    
+    elements.forEach((element, index) => {
+      const uniqueId = `${category}-${index}`;
+      html += `
+        <div class="weight-item" data-id="${uniqueId}">
+          <div class="weight-item-info">
+            <input type="text" class="weight-item-label editable-label" 
+                   value="${element.display || element.value}" 
+                   data-original="${element.value}">
+            <span class="weight-item-category">${category}</span>
+          </div>
+          <div class="weight-item-controls">
+            <input type="range" class="weight-slider" 
+                   min="0" max="50" value="${element.weight}"
+                   data-id="${uniqueId}">
+            <input type="number" class="weight-input" 
+                   min="0" max="50" value="${element.weight}"
+                   data-id="${uniqueId}">
+            <button class="delete-btn" data-id="${uniqueId}">✕</button>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+  });
+  
+  container.innerHTML = html;
+  
+  // Add change listeners for sliders and inputs
+  container.querySelectorAll('.weight-slider').forEach(slider => {
+    slider.addEventListener('input', (e) => {
+      const id = e.target.dataset.id;
+      const value = e.target.value;
+      const input = container.querySelector(`.weight-input[data-id="${id}"]`);
+      if (input) input.value = value;
+    });
+  });
+  
+  container.querySelectorAll('.weight-input').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const id = e.target.dataset.id;
+      const value = e.target.value;
+      const slider = container.querySelector(`.weight-slider[data-id="${id}"]`);
+      if (slider) slider.value = value;
+    });
+  });
+  
+  // Add delete listeners
+  container.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const item = e.target.closest('.weight-item');
+      if (item && confirm('Remove this criteria?')) {
+        item.remove();
+      }
+    });
+  });
+}
+
+// Set up event listeners for the weights editor
+function setupWeightsEditorListeners(originalElements) {
+  // Add new criteria
+  document.getElementById('addCriteriaBtn')?.addEventListener('click', () => {
+    const input = document.getElementById('newCriteriaInput');
+    const category = document.getElementById('newCriteriaCategory');
+    const weight = document.getElementById('newCriteriaWeight');
+    
+    if (!input.value.trim()) return;
+    
+    // Add to the list
+    const container = document.getElementById('searchElementsList');
+    const categoryGroup = container.querySelector(`.weight-category-group:has(.weight-category-header:contains("${category.value.toUpperCase()}"))`);
+    
+    const newId = `${category.value}-${Date.now()}`;
+    const newItem = document.createElement('div');
+    newItem.className = 'weight-item';
+    newItem.dataset.id = newId;
+    newItem.innerHTML = `
+      <div class="weight-item-info">
+        <input type="text" class="weight-item-label editable-label" 
+               value="${input.value}">
+        <span class="weight-item-category">${category.value}</span>
+      </div>
+      <div class="weight-item-controls">
+        <input type="range" class="weight-slider" 
+               min="0" max="50" value="${weight.value}"
+               data-id="${newId}">
+        <input type="number" class="weight-input" 
+               min="0" max="50" value="${weight.value}"
+               data-id="${newId}">
+        <button class="delete-btn" data-id="${newId}">✕</button>
+      </div>
+    `;
+    
+    // Add to appropriate category or create new one
+    if (categoryGroup) {
+      categoryGroup.appendChild(newItem);
+    } else {
+      const newGroup = document.createElement('div');
+      newGroup.className = 'weight-category-group';
+      newGroup.innerHTML = `<div class="weight-category-header">${category.value.toUpperCase()}</div>`;
+      newGroup.appendChild(newItem);
+      container.appendChild(newGroup);
+    }
+    
+    // Clear input
+    input.value = '';
+    
+    // Reattach listeners
+    attachItemListeners(newItem);
+  });
+  
+  // Save changes
+  document.getElementById('saveWeightsBtn')?.addEventListener('click', async () => {
+    const newElements = [];
+    
+    document.querySelectorAll('.weight-item').forEach(item => {
+      const label = item.querySelector('.editable-label').value;
+      const category = item.querySelector('.weight-item-category').textContent;
+      const weight = parseInt(item.querySelector('.weight-input').value);
+      
+      if (label && weight >= 0) {
+        newElements.push({
+          value: label.toLowerCase(),
+          display: label,
+          weight: weight,
+          category: category
+        });
+      }
+    });
+    
+    // Save to storage
+    await chrome.storage.local.set({ searchElements: newElements });
+    
+    // Notify content scripts
+    notifyContentScripts(newElements);
+    
+    // Show success
+    showStatus('Matching criteria saved!', 'success');
+    
+    // Hide editor
+    document.getElementById('weightsEditor').style.display = 'none';
+    document.getElementById('editWeightsBtn').textContent = 'Edit Matching Weights';
+  });
+  
+  // Cancel
+  document.getElementById('cancelWeightsBtn')?.addEventListener('click', () => {
+    document.getElementById('weightsEditor').style.display = 'none';
+    document.getElementById('editWeightsBtn').textContent = 'Edit Matching Weights';
+  });
+  
+  // Reset to defaults
+  document.getElementById('resetDefaultsBtn')?.addEventListener('click', async () => {
+    const result = await chrome.storage.local.get(['resumeData']);
+    if (result.resumeData?.search_elements) {
+      displaySearchElements(result.resumeData.search_elements);
+      showStatus('Reset to resume defaults', 'success');
+    }
+  });
+}
+
+// Attach listeners to individual items
+function attachItemListeners(item) {
+  const slider = item.querySelector('.weight-slider');
+  const input = item.querySelector('.weight-input');
+  const deleteBtn = item.querySelector('.delete-btn');
+  
+  if (slider && input) {
+    slider.addEventListener('input', (e) => {
+      input.value = e.target.value;
+    });
+    
+    input.addEventListener('input', (e) => {
+      slider.value = e.target.value;
+    });
+  }
+  
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      if (confirm('Remove this criteria?')) {
+        item.remove();
+      }
+    });
+  }
 }
 
 function showStatus(message, type) {
