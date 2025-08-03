@@ -155,33 +155,64 @@
 
 ## 📦 Day 2: Deployment (2-3 hours)
 
-### 4. Deploy Backend to Railway (Recommended - 30 minutes)
-**Purpose**: Get backend API online
+### 4. Deploy Backend to Railway (BEST OPTION - 30 minutes)
+**Why Railway**: Best for FastAPI + file storage, $5 free/month, easiest deployment
 
-1. **Prepare for Deployment**
+1. **Prepare Backend for Railway**
    ```bash
    cd backend
    
-   # Create Procfile
-   echo "web: uvicorn main:app --host 0.0.0.0 --port \$PORT" > Procfile
+   # Create railway.json for configuration
+   cat > railway.json << 'EOF'
+   {
+     "$schema": "https://railway.app/railway.schema.json",
+     "build": {
+       "builder": "NIXPACKS"
+     },
+     "deploy": {
+       "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
+       "restartPolicyType": "ON_FAILURE",
+       "restartPolicyMaxRetries": 10
+     }
+   }
+   EOF
    
-   # Create runtime.txt
-   echo "python-3.12" > runtime.txt
+   # Create .gitignore if not exists
+   cat >> .gitignore << 'EOF'
+   data/
+   *.pkl
+   *.pyc
+   __pycache__/
+   .env
+   server.log
+   EOF
    
-   # Update requirements.txt (ensure all deps listed)
-   pip freeze > requirements.txt
+   # Commit changes
+   git add .
+   git commit -m "Add Railway deployment config"
+   git push
    ```
 
 2. **Deploy to Railway**
    - Go to https://railway.app
-   - Sign up with GitHub
+   - Sign up with GitHub (free)
    - Click "New Project"
    - Select "Deploy from GitHub repo"
-   - Select your `networkiq-extension` repo
-   - Railway auto-detects Python app
+   - Authorize Railway to access your repo
+   - Select `networkiq-extension` repository
+   - Railway will auto-detect Python/FastAPI
    
-3. **Set Environment Variables**
-   In Railway dashboard → Variables:
+3. **Configure Persistent Storage** (IMPORTANT for pickle files)
+   - In Railway dashboard, click on your service
+   - Go to "Settings" tab
+   - Scroll to "Volumes"
+   - Click "Add Volume"
+   - Mount path: `/app/data`
+   - Size: 1GB (more than enough)
+   - This ensures your user data persists between deployments!
+
+4. **Set Environment Variables**
+   In Railway dashboard → Variables tab, add:
    ```
    OPENAI_API_KEY=sk-your-openai-key
    JWT_SECRET=generate-random-32-char-string
@@ -190,11 +221,26 @@
    STRIPE_PRICE_ID=price_your_price_id
    ENVIRONMENT=production
    ```
+   
+   Railway also auto-sets:
+   - `PORT` - automatically configured
+   - `RAILWAY_ENVIRONMENT` - production
 
-4. **Get Production URL**
+5. **Get Production URL**
    - Railway provides URL like: `networkiq-production.up.railway.app`
+   - Or click "Settings" → "Domains" → Generate Domain
    - Test it: `curl https://your-app.railway.app/`
-   - Update Stripe webhook URL with this domain
+   - **IMPORTANT**: Update Stripe webhook URL with this domain
+
+6. **Monitor Deployment**
+   - Watch deployment logs in Railway dashboard
+   - Check "Metrics" tab for usage (stays within free tier initially)
+   - Set up "Deployments" notifications to your email
+
+**Alternative Options** (if Railway doesn't work):
+- **Render.com**: Similar to Railway but requires credit card for free tier
+- **Fly.io**: More complex but great for global deployment
+- **DigitalOcean App Platform**: $5/month minimum but very reliable
 
 ### 5. Deploy Landing Page to Vercel (20 minutes)
 **Purpose**: Marketing site for user acquisition
@@ -359,16 +405,37 @@ Create `privacy.html` on your landing page:
 
 ## 💰 Cost Breakdown
 
-**Monthly Costs**
-- Railway hosting: Free tier (sufficient for <1000 users)
-- Vercel hosting: Free tier
-- OpenAI API: ~$5-20/month depending on usage
-- Stripe: 2.9% + 30¢ per transaction
-- Total: <$25/month until you scale
+**Monthly Costs (First 1000 Users)**
+- **Railway hosting**: 
+  - $5 free credit/month
+  - After that: ~$5-10/month (usage-based)
+  - Breakdown: $0.01/GB RAM/hour + $0.25/GB storage/month
+  - Your app uses ~512MB RAM = ~$3.60/month
+  - 1GB persistent storage = $0.25/month
+- **Vercel hosting**: Free tier (frontend/landing page)
+- **OpenAI API**: 
+  - ~$0.002 per message generated
+  - 1000 messages = $2
+  - Estimate: $5-20/month depending on usage
+- **Stripe**: 2.9% + 30¢ per transaction
+  - 10 customers × $19 = $190 revenue
+  - Stripe fees = ~$6.50
+
+**Total Monthly Costs**:
+- Starting (0-100 users): FREE (within Railway's $5 credit)
+- Growing (100-500 users): ~$10-15/month
+- Scaling (500-1000 users): ~$20-30/month
+- Revenue at 10 paying users: $190/month
+- **Profit at 10 users: ~$170/month** ✅
 
 **One-Time Costs**
 - Chrome Developer Account: $5
 - Domain name (optional): $12/year
+
+**When to Upgrade**:
+- Railway → Add more resources when response times > 1 second
+- Add PostgreSQL when > 1000 users ($7/month on Railway)
+- Upgrade OpenAI to GPT-4 when revenue > $500/month
 
 ---
 
