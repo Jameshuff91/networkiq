@@ -80,11 +80,16 @@ class NetworkScorer {
 
     // Score based on search elements
     for (const element of this.searchElements) {
-      const searchValue = element.value.toLowerCase();
+      const searchValue = (element.value || element.text || '').toLowerCase();
       
       // Check if the profile contains this search element
       if (this.containsMatch(fullText, searchValue)) {
         totalScore += element.weight;
+        
+        // Debug military/academy matches
+        if (searchValue.includes('air force') || searchValue.includes('academy') || searchValue.includes('usafa')) {
+          console.log(`NetworkIQ: Found military match "${searchValue}" for ${profile.name}`);
+        }
         
         // Track breakdown by category
         if (breakdown[element.category] !== undefined) {
@@ -93,7 +98,7 @@ class NetworkScorer {
         
         // Add to matches for display
         matches.push({
-          text: element.display || element.value,
+          text: element.display || element.value || element.text,
           weight: element.weight,
           category: element.category
         });
@@ -127,6 +132,10 @@ class NetworkScorer {
    * @returns {boolean}
    */
   containsMatch(text, searchTerm) {
+    // Convert both to lowercase for case-insensitive matching
+    text = text.toLowerCase();
+    searchTerm = searchTerm.toLowerCase();
+    
     // Handle multi-word search terms
     const words = searchTerm.split(/\s+/);
     
@@ -136,8 +145,14 @@ class NetworkScorer {
     }
     
     // For multi-word terms, check if all words are present
-    // This handles cases like "air force" or "c3 ai"
-    return words.every(word => text.includes(word));
+    // This handles cases like "air force academy" or "c3 ai"
+    const allWordsPresent = words.every(word => text.includes(word));
+    
+    // Also check if the exact phrase exists
+    const exactPhrasePresent = text.includes(searchTerm);
+    
+    // Return true if either condition is met
+    return allWordsPresent || exactPhrasePresent;
   }
 
   /**
