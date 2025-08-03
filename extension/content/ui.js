@@ -33,13 +33,34 @@ class NetworkIQUI {
 
   async loadUserSettings() {
     return new Promise((resolve) => {
-      chrome.storage.sync.get(['userTier', 'userBackground', 'dailyUsage'], (data) => {
-        this.userTier = data.userTier || 'free';
-        if (data.userBackground) {
-          this.scorer.userBackground = data.userBackground;
+      // Check both local (for test mode) and sync storage
+      chrome.storage.local.get(['testMode', 'user'], (localData) => {
+        if (localData.testMode) {
+          // Test mode - use mock data
+          this.userTier = 'pro';
+          this.testMode = true;
+          this.scorer.userBackground = {
+            search_elements: [
+              { text: 'MIT', weight: 30, type: 'education' },
+              { text: 'Google', weight: 25, type: 'company' },
+              { text: 'Facebook', weight: 25, type: 'company' },
+              { text: 'machine learning', weight: 15, type: 'skill' }
+            ]
+          };
+          this.dailyUsage = 0;
+          console.log('NetworkIQ: Running in test mode');
+          resolve();
+        } else {
+          // Normal mode - get from sync storage
+          chrome.storage.sync.get(['userTier', 'userBackground', 'dailyUsage'], (data) => {
+            this.userTier = data.userTier || 'free';
+            if (data.userBackground) {
+              this.scorer.userBackground = data.userBackground;
+            }
+            this.dailyUsage = data.dailyUsage || 0;
+            resolve();
+          });
         }
-        this.dailyUsage = data.dailyUsage || 0;
-        resolve();
       });
     });
   }
@@ -53,36 +74,51 @@ class NetworkIQUI {
   }
 
   async injectProfileScore() {
-    // Check daily limit for free users
-    if (this.userTier === 'free' && this.dailyUsage >= 10) {
-      this.showUpgradePrompt();
-      return;
+    try {
+      // Skip daily limit check in test mode
+      if (!this.testMode && this.userTier === 'free' && this.dailyUsage >= 10) {
+        this.showUpgradePrompt();
+        return;
+      }
+
+      // Parse profile
+      console.log('NetworkIQ: Parsing profile...');
+      const profile = this.parser.parse();
+      if (!profile) {
+        console.log('NetworkIQ: Could not parse profile');
+        return;
+      }
+
+      // Calculate score
+      console.log('NetworkIQ: Calculating score...');
+      const scoreData = this.scorer.calculateScore(profile);
+      this.currentProfile = { profile, scoreData };
+
+      // Create and inject UI
+      console.log('NetworkIQ: Creating UI elements...');
+      this.createScoreBadge(scoreData);
+      this.createMessageBox(profile, scoreData);
+      this.createFloatingWidget(scoreData);
+
+      // Track usage (skip in test mode)
+      if (!this.testMode && this.userTier === 'free') {
+        this.dailyUsage++;
+        chrome.storage.sync.set({ dailyUsage: this.dailyUsage });
+      }
+
+      // Send analytics (skip in test mode)
+      if (!this.testMode) {
+        this.trackEvent('profile_scored', {
+          score: scoreData.score,
+          tier: scoreData.tier
+        });
+      }
+      
+      console.log('NetworkIQ: Profile scored successfully', scoreData);
+    } catch (error) {
+      console.error('NetworkIQ: Error scoring profile:', error);
+      // Don't let errors crash the page
     }
-
-    // Parse profile
-    const profile = this.parser.parse();
-    if (!profile) return;
-
-    // Calculate score
-    const scoreData = this.scorer.calculateScore(profile);
-    this.currentProfile = { profile, scoreData };
-
-    // Create and inject UI
-    this.createScoreBadge(scoreData);
-    this.createMessageBox(profile, scoreData);
-    this.createFloatingWidget(scoreData);
-
-    // Track usage
-    if (this.userTier === 'free') {
-      this.dailyUsage++;
-      chrome.storage.sync.set({ dailyUsage: this.dailyUsage });
-    }
-
-    // Send analytics
-    this.trackEvent('profile_scored', {
-      score: scoreData.score,
-      tier: scoreData.tier
-    });
   }
 
   createScoreBadge(scoreData) {
