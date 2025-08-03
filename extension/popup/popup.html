@@ -52,24 +52,19 @@
       </button>
     </div>
 
-    <!-- Settings Section -->
+    <!-- Resume Upload Section -->
     <div class="settings-section">
-      <h3>Your Background</h3>
-      <div class="setting-group">
-        <label>Military Service</label>
-        <input type="text" id="militaryInput" placeholder="e.g., USAFA, Air Force">
-      </div>
-      <div class="setting-group">
-        <label>Companies</label>
-        <input type="text" id="companiesInput" placeholder="e.g., C3 AI, Google">
-      </div>
-      <div class="setting-group">
-        <label>Education</label>
-        <input type="text" id="educationInput" placeholder="e.g., Johns Hopkins, MIT">
-      </div>
-      <button class="action-btn secondary" id="saveSettingsBtn">
-        Save Settings
+      <h3>Upload Your Resume</h3>
+      <p class="helper-text">We'll match profiles based on your background</p>
+      <input type="file" id="resumeUpload" accept=".pdf,.docx,.doc,.txt" style="display:none">
+      <button class="action-btn secondary" id="uploadResumeBtn">
+        <span id="uploadBtnText">Choose Resume File</span>
       </button>
+      <div id="uploadStatus" class="upload-status"></div>
+      <div id="resumeDetails" class="resume-details" style="display:none">
+        <h4>Your Profile Summary</h4>
+        <div id="resumeSummary"></div>
+      </div>
     </div>
 
     <!-- Upgrade CTA (Free users) -->

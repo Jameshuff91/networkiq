@@ -61,12 +61,31 @@ JWT_SECRET=your_jwt_secret
 
 ## Key Implementation Details
 
-### Scoring Algorithm (extension/content/scorer.js)
-The scoring system evaluates profiles based on:
-- Military connections (USAFA, veterans): 30-40 points
-- Company connections (C3 AI, Big Tech): 25-40 points
-- Role relevance (Product Management): 20 points
-- Maximum score: 100
+### Resume-Based Dynamic Scoring
+The system now uses uploaded resumes for personalized scoring:
+
+#### Resume Upload (extension/popup/popup.js)
+- Users upload PDF/DOCX/TXT resumes via the extension popup
+- Files are parsed on the backend to extract background information
+- Creates weighted "search elements" for profile matching
+
+#### Scoring Algorithm (extension/content/scorer.js)
+The scoring system evaluates profiles dynamically based on user's resume:
+- Education matches: 30 points per institution
+- Company matches: 25 points per company  
+- Military connections: 30-40 points (academy alumni get highest)
+- Skills/certifications: 10-15 points each
+- Keywords: 5 points each
+- Maximum score: 100 (capped)
+
+#### Resume Parser (backend/resume_parser.py)
+Extracts from resumes:
+- Education institutions and degrees
+- Company work history
+- Technical skills and tools
+- Military service details
+- Professional certifications
+- Industry keywords
 
 ### API Authentication
 - JWT-based authentication with 30-day expiration
@@ -98,6 +117,7 @@ The scoring system evaluates profiles based on:
 - `POST /api/auth/signup`: Create new user account
 - `POST /api/auth/login`: User authentication
 - `GET /api/auth/user`: Get current user info
+- `POST /api/resume/upload`: Upload and parse user resume (NEW)
 - `POST /api/profiles/score`: Score a LinkedIn profile
 - `POST /api/messages/generate`: Generate personalized message
 - `POST /api/payments/create-checkout`: Create Stripe checkout session

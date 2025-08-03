@@ -3,12 +3,12 @@ NetworkIQ Backend API
 Fast, scalable API for Chrome extension
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import stripe
 import os
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 import json
 import pickle
 from pathlib import Path
@@ -18,6 +18,7 @@ from pydantic import BaseModel, EmailStr
 import jwt
 from passlib.context import CryptContext
 import hashlib
+from resume_parser import parse_resume_file
 
 # Load environment variables
 load_dotenv()
@@ -232,7 +233,59 @@ async def get_user(current_user: dict = Depends(get_current_user)):
         "name": current_user["name"],
         "subscription_tier": current_user["subscription_tier"],
         "background": current_user.get("background", {}),
+        "resume_data": current_user.get("resume_data", {}),
     }
+
+
+@app.post("/api/resume/upload")
+async def upload_resume(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload and parse user's resume"""
+    # Validate file type
+    if not file.filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Please upload PDF, DOCX, or TXT file"
+        )
+    
+    # Read file content
+    content = await file.read()
+    
+    # Parse resume
+    try:
+        parsed_data = parse_resume_file(content, file.filename)
+        
+        # Store parsed resume data in user profile
+        user_email = current_user["email"]
+        if user_email in users_db:
+            users_db[user_email]["resume_data"] = parsed_data
+            users_db[user_email]["background"] = {
+                "companies": parsed_data.get("companies", []),
+                "skills": parsed_data.get("skills", []),
+                "education": parsed_data.get("education", []),
+                "military": parsed_data.get("military_service"),
+                "search_elements": parsed_data.get("search_elements", [])
+            }
+            save_db("users", users_db)
+        
+        return {
+            "success": True,
+            "message": "Resume uploaded and parsed successfully",
+            "data": {
+                "companies": parsed_data.get("companies", []),
+                "skills": len(parsed_data.get("skills", [])),
+                "education": parsed_data.get("education", []),
+                "military": bool(parsed_data.get("military_service")),
+                "search_elements": len(parsed_data.get("search_elements", []))
+            }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse resume: {str(e)}"
+        )
 
 
 @app.post("/api/profiles/score")
@@ -258,40 +311,52 @@ async def score_profile(
             detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
         )
 
-    # Calculate score (simplified version)
+    # Calculate score dynamically based on user's resume
     score = 0
     breakdown = {}
     connections = []
 
     profile_text = json.dumps(profile.profile_data).lower()
-
-    # Military connections
-    if "usafa" in profile_text or "air force academy" in profile_text:
-        score += 40
-        breakdown["military"] = 40
-        connections.append("USAFA Alumni")
-    elif any(word in profile_text for word in ["military", "veteran", "navy", "army"]):
-        score += 30
-        breakdown["military"] = 30
-        connections.append("Military Veteran")
-
-    # Company connections
-    if "c3" in profile_text or "c3.ai" in profile_text:
-        score += 40
-        breakdown["company"] = 40
-        connections.append("Former C3 AI Colleague")
-    elif any(
-        company in profile_text for company in ["anthropic", "openai", "google", "meta"]
-    ):
-        score += 25
-        breakdown["company"] = 25
-        connections.append("Big Tech AI")
-
-    # Role relevance
-    if "product" in profile_text and "manager" in profile_text:
-        score += 20
-        breakdown["role"] = 20
-        connections.append("Product Management")
+    
+    # Get user's search elements from their resume
+    user_background = current_user.get("background", {})
+    search_elements = user_background.get("search_elements", [])
+    
+    # If no resume uploaded, use some default matching
+    if not search_elements:
+        # Default scoring for users without resume
+        if any(word in profile_text for word in ["ceo", "founder", "director", "vp"]):
+            score += 20
+            connections.append("Leadership Role")
+        if any(word in profile_text for word in ["ai", "machine learning", "data science"]):
+            score += 15
+            connections.append("AI/ML Background")
+    else:
+        # Dynamic scoring based on user's resume
+        matched_elements = []
+        
+        for element in search_elements:
+            # Check if this element matches the profile
+            if element["value"].lower() in profile_text:
+                score += element["weight"]
+                matched_elements.append(element)
+                
+                # Add to breakdown by category
+                category = element["category"]
+                if category not in breakdown:
+                    breakdown[category] = 0
+                breakdown[category] += element["weight"]
+                
+                # Add to connections for display
+                connections.append(element["display"])
+        
+        # Limit connections to top 3 for display
+        connections = connections[:3]
+        
+        # Bonus points for multiple matches in same category
+        if len(matched_elements) >= 3:
+            score += 10  # Bonus for strong alignment
+            connections.append("Strong Match")
 
     # Update usage
     daily_usage["scores"] += 1
