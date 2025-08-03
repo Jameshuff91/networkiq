@@ -40,30 +40,39 @@ class NetworkIQUI {
   async loadUserSettings() {
     return new Promise((resolve) => {
       // Check both local (for test mode) and sync storage
-      chrome.storage.local.get(['testMode', 'user'], (localData) => {
+      chrome.storage.local.get(['testMode', 'user', 'resumeData', 'searchElements'], (localData) => {
         if (localData.testMode) {
           // Test mode - use mock data
           this.userTier = 'pro';
           this.testMode = true;
-          this.scorer.userBackground = {
-            search_elements: [
-              { text: 'MIT', weight: 30, type: 'education' },
-              { text: 'Google', weight: 25, type: 'company' },
-              { text: 'Facebook', weight: 25, type: 'company' },
-              { text: 'machine learning', weight: 15, type: 'skill' }
-            ]
-          };
+          this.scorer.searchElements = [
+            { value: 'air force academy', weight: 40, display: 'Air Force Academy', category: 'education' },
+            { value: 'usafa', weight: 40, display: 'USAFA', category: 'education' },
+            { value: 'anthropic', weight: 25, display: 'Anthropic', category: 'company' },
+            { value: 'machine learning', weight: 15, display: 'Machine Learning', category: 'skill' }
+          ];
           this.dailyUsage = 0;
-          console.log('NetworkIQ: Running in test mode');
+          console.log('NetworkIQ: Running in test mode with search elements:', this.scorer.searchElements);
           resolve();
         } else {
-          // Normal mode - get from sync storage
-          chrome.storage.sync.get(['userTier', 'userBackground', 'dailyUsage'], (data) => {
-            this.userTier = data.userTier || 'free';
-            if (data.userBackground) {
-              this.scorer.userBackground = data.userBackground;
+          // Normal mode - get all relevant data
+          chrome.storage.sync.get(['userTier', 'dailyUsage'], (syncData) => {
+            this.userTier = syncData.userTier || 'free';
+            this.dailyUsage = syncData.dailyUsage || 0;
+            
+            // Load search elements from resume data
+            if (localData.searchElements) {
+              this.scorer.searchElements = localData.searchElements;
+              console.log('NetworkIQ: Loaded search elements:', this.scorer.searchElements.length, 'items');
+            } else if (localData.resumeData?.search_elements) {
+              this.scorer.searchElements = localData.resumeData.search_elements;
+              console.log('NetworkIQ: Loaded search elements from resume:', this.scorer.searchElements.length, 'items');
+            } else {
+              // Use default if no resume uploaded
+              this.scorer.searchElements = this.scorer.getDefaultSearchElements();
+              console.log('NetworkIQ: Using default search elements');
             }
-            this.dailyUsage = data.dailyUsage || 0;
+            
             resolve();
           });
         }
@@ -420,16 +429,24 @@ class NetworkIQUI {
     let mediumScoreCount = 0;
     let lowScoreCount = 0;
     
-    profiles.forEach(profile => {
+    profiles.forEach((profile, idx) => {
       // Calculate comprehensive score using resume data
-      const scoreData = this.scorer.calculateScore({
+      const profileData = {
         name: profile.name,
         title: profile.title,
         company: profile.company,
         location: profile.location,
         text: profile.fullText || `${profile.name} ${profile.title} ${profile.company} ${profile.location} ${profile.summary}`.toLowerCase(),
         about: profile.summary || ''
-      });
+      };
+      
+      // Debug: log what we're scoring
+      if (idx === 0) {
+        console.log('NetworkIQ: Scoring profile with data:', profileData);
+        console.log('NetworkIQ: Scorer search elements:', this.scorer.searchElements);
+      }
+      
+      const scoreData = this.scorer.calculateScore(profileData);
       
       // Store scored profile
       scoredProfiles.push({

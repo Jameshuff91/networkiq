@@ -327,13 +327,23 @@ class LinkedInParser {
       
       console.log(`NetworkIQ: Card ${index} - Name: "${name}", URL: ${url}`);
       
-      // Get title/headline
-      const titleElement = card.querySelector(
-        '.entity-result__primary-subtitle, ' +
-        '[class*="primary-subtitle"], ' +
-        '.t-14.t-black.t-normal'
-      );
-      const title = titleElement?.textContent?.trim();
+      // Get title/headline - this often contains important info like "Air Force Academy"
+      const titleSelectors = [
+        '.entity-result__primary-subtitle',
+        '[class*="primary-subtitle"]',
+        '.t-14.t-black.t-normal',
+        '.entity-result__title-line + div',  // The div after the name often has the title
+        'div[class*="subtitle"]'
+      ];
+      
+      let title = '';
+      for (const selector of titleSelectors) {
+        const titleElement = card.querySelector(selector);
+        if (titleElement?.textContent?.trim()) {
+          title = titleElement.textContent.trim();
+          break;
+        }
+      }
       
       // Get location
       const locationElement = card.querySelector(
@@ -383,8 +393,15 @@ class LinkedInParser {
       );
       const imageUrl = imageElement?.src;
       
-      // Get the full text content for better matching
-      const fullText = `${name} ${title} ${company} ${location} ${summary}`.toLowerCase();
+      // Get ALL text from the card for comprehensive matching
+      // This ensures we catch things like "Air Force Academy" that might be anywhere
+      const cardFullText = card.textContent?.replace(/\s+/g, ' ').trim() || '';
+      const structuredText = `${name} ${title} ${company} ${location} ${summary}`.toLowerCase();
+      
+      // Combine both for maximum coverage
+      const fullText = (cardFullText + ' ' + structuredText).toLowerCase();
+      
+      console.log(`NetworkIQ: Card ${index} full text sample:`, fullText.substring(0, 200));
       
       // Add profile if we have at least a URL (name might be empty on some cards)
       if (url && !profiles.find(p => p.url === url)) {
