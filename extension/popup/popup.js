@@ -534,7 +534,13 @@ async function showWeightsEditor(resumeData) {
 // Display search elements in the editor
 function displaySearchElements(searchElements) {
   const container = document.getElementById('searchElementsList');
+  const bulkActions = document.getElementById('bulkActions');
   if (!container) return;
+  
+  // Show bulk actions if there are elements
+  if (bulkActions) {
+    bulkActions.style.display = searchElements.length > 0 ? 'flex' : 'none';
+  }
   
   // Group by category
   const grouped = {};
@@ -556,6 +562,7 @@ function displaySearchElements(searchElements) {
       const uniqueId = `${category}-${index}`;
       html += `
         <div class="weight-item" data-id="${uniqueId}">
+          <input type="checkbox" class="weight-item-checkbox" data-id="${uniqueId}">
           <div class="weight-item-info">
             <input type="text" class="weight-item-label editable-label" 
                    value="${element.display || element.value}" 
@@ -605,9 +612,25 @@ function displaySearchElements(searchElements) {
       const item = e.target.closest('.weight-item');
       if (item && confirm('Remove this criteria?')) {
         item.remove();
+        updateBulkDeleteVisibility();
       }
     });
   });
+  
+  // Add checkbox listeners
+  container.querySelectorAll('.weight-item-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const item = e.target.closest('.weight-item');
+      if (item) {
+        item.classList.toggle('selected', e.target.checked);
+      }
+      updateBulkDeleteVisibility();
+      updateSelectAllCheckbox();
+    });
+  });
+  
+  // Setup bulk operations
+  setupBulkOperations();
 }
 
 // Set up event listeners for the weights editor
@@ -629,6 +652,7 @@ function setupWeightsEditorListeners(originalElements) {
     newItem.className = 'weight-item';
     newItem.dataset.id = newId;
     newItem.innerHTML = `
+      <input type="checkbox" class="weight-item-checkbox" data-id="${newId}">
       <div class="weight-item-info">
         <input type="text" class="weight-item-label editable-label" 
                value="${input.value}">
@@ -717,6 +741,7 @@ function attachItemListeners(item) {
   const slider = item.querySelector('.weight-slider');
   const input = item.querySelector('.weight-input');
   const deleteBtn = item.querySelector('.delete-btn');
+  const checkbox = item.querySelector('.weight-item-checkbox');
   
   if (slider && input) {
     slider.addEventListener('input', (e) => {
@@ -732,8 +757,74 @@ function attachItemListeners(item) {
     deleteBtn.addEventListener('click', () => {
       if (confirm('Remove this criteria?')) {
         item.remove();
+        updateBulkDeleteVisibility();
       }
     });
+  }
+  
+  if (checkbox) {
+    checkbox.addEventListener('change', (e) => {
+      item.classList.toggle('selected', e.target.checked);
+      updateBulkDeleteVisibility();
+      updateSelectAllCheckbox();
+    });
+  }
+}
+
+// Setup bulk operations
+function setupBulkOperations() {
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+  
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', (e) => {
+      const checkboxes = document.querySelectorAll('.weight-item-checkbox');
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = e.target.checked;
+        const item = checkbox.closest('.weight-item');
+        if (item) {
+          item.classList.toggle('selected', e.target.checked);
+        }
+      });
+      updateBulkDeleteVisibility();
+    });
+  }
+  
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.addEventListener('click', () => {
+      const selectedItems = document.querySelectorAll('.weight-item.selected');
+      if (selectedItems.length > 0) {
+        const count = selectedItems.length;
+        if (confirm(`Delete ${count} selected criteria?`)) {
+          selectedItems.forEach(item => item.remove());
+          updateBulkDeleteVisibility();
+          updateSelectAllCheckbox();
+        }
+      }
+    });
+  }
+}
+
+// Update bulk delete button visibility
+function updateBulkDeleteVisibility() {
+  const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+  const selectedItems = document.querySelectorAll('.weight-item.selected');
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.classList.toggle('show', selectedItems.length > 0);
+    if (selectedItems.length > 0) {
+      bulkDeleteBtn.textContent = `Delete Selected (${selectedItems.length})`;
+    }
+  }
+}
+
+// Update select all checkbox state
+function updateSelectAllCheckbox() {
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  if (selectAllCheckbox) {
+    const allCheckboxes = document.querySelectorAll('.weight-item-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.weight-item-checkbox:checked');
+    selectAllCheckbox.checked = allCheckboxes.length > 0 && allCheckboxes.length === checkedCheckboxes.length;
+    selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
   }
 }
 

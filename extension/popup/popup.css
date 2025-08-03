@@ -340,11 +340,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px;
+  padding: 12px;
   margin-bottom: 8px;
   background: #F8F9FA;
   border-radius: 6px;
   transition: background 0.2s;
+  position: relative;
+  overflow: hidden;
 }
 
 .weight-item:hover {
@@ -355,6 +357,8 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  margin-right: 12px;
 }
 
 .weight-item-label {
@@ -369,8 +373,10 @@ body {
   border: 1px solid transparent;
   padding: 2px 4px;
   border-radius: 3px;
-  width: 100%;
+  width: calc(100% - 8px);
   transition: all 0.2s;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .editable-label:hover {
@@ -396,6 +402,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .delete-btn {
@@ -483,6 +490,72 @@ body {
   margin-bottom: 8px;
   padding-bottom: 4px;
   border-bottom: 1px solid #E8E9EA;
+}
+
+/* Bulk operations styles */
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: #F0F0F0;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.bulk-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bulk-select input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.bulk-select label {
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bulk-delete-btn {
+  background: #FF5252;
+  color: white;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: none;
+}
+
+.bulk-delete-btn.show {
+  display: block;
+}
+
+.bulk-delete-btn:hover {
+  background: #D32F2F;
+}
+
+.weight-item.selected {
+  background: #E3F2FD;
+  border: 1px solid #2196F3;
+  padding: 11px;
+}
+
+.weight-item-checkbox {
+  width: 16px;
+  height: 16px;
+  margin-right: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 /* Upgrade Section */
