@@ -251,6 +251,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch(error => sendResponse({ error: error.message }));
       return true; // Will respond asynchronously
       
+    case 'analyzeProfile':
+      // Use the new LLM-based analysis endpoint
+      handleAPICall('/profiles/analyze', {
+        linkedin_url: request.profile.url || '',
+        profile_data: request.profile,
+        user_background: request.searchElements
+      })
+        .then(sendResponse)
+        .catch(error => sendResponse({ error: error.message }));
+      return true; // Will respond asynchronously
+      
+    case 'generateMessage':
+      // Use LLM for message generation
+      handleAPICall('/messages/generate', {
+        profile: request.profile,
+        score_data: request.scoreData
+      })
+        .then(sendResponse)
+        .catch(error => sendResponse({ error: error.message }));
+      return true; // Will respond asynchronously
+      
     case 'track':
       // Simple console logging for now (analytics endpoint doesn't exist)
       console.log('Event tracked:', request.event, request.data);

@@ -111,9 +111,48 @@ class NetworkIQUI {
         return;
       }
 
-      // Calculate score
+      // Calculate score - try LLM first, fallback to local
       console.log('NetworkIQ: Calculating score...');
-      const scoreData = this.scorer.calculateScore(profile);
+      let scoreData;
+      
+      // Check if we should use LLM (default: yes for better matching)
+      const settings = await chrome.storage.local.get(['useLLMAnalysis']);
+      const useLLM = settings.useLLMAnalysis !== false;
+      
+      if (useLLM && !this.testMode) {
+        try {
+          console.log('NetworkIQ: Using LLM for intelligent matching...');
+          const response = await chrome.runtime.sendMessage({
+            action: 'analyzeProfile',
+            profile: profile,
+            searchElements: this.scorer.searchElements
+          });
+          
+          if (response && !response.error) {
+            console.log('NetworkIQ: LLM analysis successful:', response);
+            // Format LLM response to match local scorer format
+            scoreData = {
+              score: response.score,
+              tier: response.tier,
+              matches: response.matches || [],
+              breakdown: response.breakdown || {},
+              insights: response.insights || [],
+              hiddenConnections: response.hidden_connections || [],
+              recommendation: response.recommendation || '',
+              message: response.message
+            };
+          } else {
+            console.log('NetworkIQ: LLM failed, using local scoring:', response?.error);
+            scoreData = this.scorer.calculateScore(profile);
+          }
+        } catch (error) {
+          console.log('NetworkIQ: LLM error, using local scoring:', error);
+          scoreData = this.scorer.calculateScore(profile);
+        }
+      } else {
+        scoreData = this.scorer.calculateScore(profile);
+      }
+      
       this.currentProfile = { profile, scoreData };
 
       // Create and inject UI
@@ -173,8 +212,8 @@ class NetworkIQUI {
     const existing = document.querySelector('.networkiq-sidebar');
     if (existing) existing.remove();
 
-    // Generate message
-    const message = this.scorer.generateMessage(profile, scoreData);
+    // Use LLM message if available, otherwise generate locally
+    const message = scoreData.message || this.scorer.generateMessage(profile, scoreData);
 
     // Create sidebar container
     const sidebar = document.createElement('div');
@@ -196,10 +235,24 @@ class NetworkIQUI {
           <h4>💡 Connection Insights</h4>
           <div class="niq-insights">
             ${(scoreData.matches || []).slice(0, 3).map(match => {
-              const matchText = typeof match === 'string' ? match : (match.text || match.display || match.value || '');
+              let matchText;
+              if (typeof match === 'string') {
+                matchText = match;
+              } else if (match.found_in_profile) {
+                // LLM format
+                matchText = `${match.matches_element} (${match.found_in_profile})`;
+              } else {
+                // Local format
+                matchText = match.text || match.display || match.value || '';
+              }
               return `<div class="niq-insight-chip">✓ ${matchText}</div>`;
             }).join('') || '<div class="niq-insight-chip">No direct matches found</div>'}
           </div>
+          ${scoreData.hiddenConnections && scoreData.hiddenConnections.length > 0 ? `
+            <div class="niq-hidden-connections">
+              <small style="color: #6B7280; font-size: 11px;">🔍 Hidden connections: ${scoreData.hiddenConnections.join(', ')}</small>
+            </div>
+          ` : ''}
         </div>
 
         <div class="niq-section">

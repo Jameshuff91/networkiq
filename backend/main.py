@@ -19,6 +19,7 @@ import jwt
 from passlib.context import CryptContext
 import hashlib
 from resume_parser import parse_resume_file
+from profile_analyzer import ProfileAnalyzer
 
 # Load environment variables
 load_dotenv()
@@ -44,6 +45,7 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "price_xxxxx")  # Your Stripe price ID
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")  # For intelligent profile analysis
 JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-this")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
@@ -393,6 +395,100 @@ async def score_profile(
             else "gold" if score >= 50 else "silver" if score >= 30 else "bronze"
         ),
     }
+
+
+@app.post("/api/profiles/analyze")
+async def analyze_profile_llm(
+    profile: ProfileScore, current_user: dict = Depends(get_current_user)
+):
+    """Analyze a LinkedIn profile using LLM for intelligent matching"""
+    
+    # Check if Gemini API is configured
+    if not GEMINI_API_KEY:
+        # Fallback to regular scoring if no API key
+        return await score_profile(profile, current_user)
+    
+    # Check usage limits for free tier
+    user_id = current_user["id"]
+    today = datetime.utcnow().date().isoformat()
+    
+    if user_id not in usage_db:
+        usage_db[user_id] = {}
+    
+    if today not in usage_db[user_id]:
+        usage_db[user_id][today] = {"scores": 0, "messages": 0}
+    
+    daily_usage = usage_db[user_id][today]
+    
+    # Check limits based on tier
+    user_tier = users_db.get(user_id, {}).get("tier", "free")
+    if user_tier == "free" and daily_usage["scores"] >= 10:
+        raise HTTPException(
+            status_code=429,
+            detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
+        )
+    
+    # Get user's search elements from their resume
+    user = users_db.get(user_id, {})
+    search_elements = user.get("search_elements", [])
+    
+    if not search_elements:
+        # No resume uploaded, use default scoring
+        return await score_profile(profile, current_user)
+    
+    try:
+        # Initialize the LLM analyzer
+        analyzer = ProfileAnalyzer(api_key=GEMINI_API_KEY)
+        
+        # Analyze the profile
+        analysis = analyzer.analyze_profile(
+            profile_data=profile.profile_data,
+            user_search_elements=search_elements
+        )
+        
+        # Generate enhanced message
+        message = analyzer.generate_enhanced_message(
+            profile=profile.profile_data,
+            analysis=analysis
+        )
+        
+        # Track usage
+        daily_usage["scores"] += 1
+        save_db("usage", usage_db)
+        
+        # Store profile with enhanced analysis
+        profile_id = f"profile_{len(profiles_db) + 1}"
+        profiles_db[profile_id] = {
+            "id": profile_id,
+            "user_id": user_id,
+            "url": profile.linkedin_url,
+            "data": profile.profile_data,
+            "score": analysis["score"],
+            "tier": analysis["tier"],
+            "matches": analysis["matches"],
+            "insights": analysis.get("insights", []),
+            "hidden_connections": analysis.get("hidden_connections", []),
+            "recommendation": analysis.get("recommendation", ""),
+            "message": message,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        save_db("profiles", profiles_db)
+        
+        return {
+            "profile_id": profile_id,
+            "score": analysis["score"],
+            "tier": analysis["tier"],
+            "matches": analysis["matches"],
+            "insights": analysis.get("insights", []),
+            "hidden_connections": analysis.get("hidden_connections", []),
+            "recommendation": analysis.get("recommendation", ""),
+            "message": message,
+        }
+        
+    except Exception as e:
+        print(f"LLM analysis failed, falling back to basic scoring: {e}")
+        # Fallback to basic scoring
+        return await score_profile(profile, current_user)
 
 
 @app.post("/api/messages/generate")
