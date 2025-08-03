@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>NetworkIQ</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <div class="popup-header">
+      <div class="logo">
+        <span class="logo-icon">🎯</span>
+        <span class="logo-text">NetworkIQ</span>
+      </div>
+      <div class="user-tier" id="userTier">FREE</div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-section">
+      <div class="stat-card">
+        <div class="stat-value" id="todayScores">0</div>
+        <div class="stat-label">Scored Today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalConnections">0</div>
+        <div class="stat-label">Connections</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="acceptanceRate">0%</div>
+        <div class="stat-label">Accept Rate</div>
+      </div>
+    </div>
+
+    <!-- Usage Section (Free users) -->
+    <div class="usage-section" id="usageSection">
+      <div class="usage-bar">
+        <div class="usage-fill" id="usageFill"></div>
+      </div>
+      <div class="usage-text">
+        <span id="usageCount">0/10</span> profiles scored today
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="actions-section">
+      <button class="action-btn primary" id="scoreCurrentBtn">
+        Score Current Profile
+      </button>
+      <button class="action-btn secondary" id="viewHistoryBtn">
+        View History
+      </button>
+    </div>
+
+    <!-- Settings Section -->
+    <div class="settings-section">
+      <h3>Your Background</h3>
+      <div class="setting-group">
+        <label>Military Service</label>
+        <input type="text" id="militaryInput" placeholder="e.g., USAFA, Air Force">
+      </div>
+      <div class="setting-group">
+        <label>Companies</label>
+        <input type="text" id="companiesInput" placeholder="e.g., C3 AI, Google">
+      </div>
+      <div class="setting-group">
+        <label>Education</label>
+        <input type="text" id="educationInput" placeholder="e.g., Johns Hopkins, MIT">
+      </div>
+      <button class="action-btn secondary" id="saveSettingsBtn">
+        Save Settings
+      </button>
+    </div>
+
+    <!-- Upgrade CTA (Free users) -->
+    <div class="upgrade-section" id="upgradeSection">
+      <h3>🚀 Unlock Pro Features</h3>
+      <ul class="feature-list">
+        <li>Unlimited profile scoring</li>
+        <li>AI-powered messages</li>
+        <li>Advanced analytics</li>
+        <li>Export connections</li>
+      </ul>
+      <button class="action-btn upgrade" id="upgradeBtn">
+        Upgrade for $19/month
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <div class="popup-footer">
+      <a href="#" id="dashboardLink">Dashboard</a>
+      <span class="separator">•</span>
+      <a href="#" id="supportLink">Support</a>
+      <span class="separator">•</span>
+      <a href="#" id="logoutLink">Logout</a>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

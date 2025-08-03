@@ -1,0 +1,9 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+stripe==7.0.0
+supabase==2.0.3
+openai==0.28.1
+pyjwt==2.8.0
+python-dotenv==1.0.0
+pydantic[email]==2.5.0
+python-multipart==0.0.6

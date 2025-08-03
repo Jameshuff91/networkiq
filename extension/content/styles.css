@@ -1,0 +1,419 @@
+/**
+ * NetworkIQ Styles
+ * Clean, modern UI that complements LinkedIn's design
+ */
+
+:root {
+  --niq-primary: #5E5ADB;
+  --niq-secondary: #7B78FF;
+  --niq-success: #00A86B;
+  --niq-gold: #FFB800;
+  --niq-platinum: #E5E4E2;
+  --niq-silver: #C0C0C0;
+  --niq-bronze: #CD7F32;
+  --niq-bg: #FFFFFF;
+  --niq-border: #E0E0E0;
+  --niq-text: #2C3E50;
+  --niq-text-light: #7F8C8D;
+}
+
+/* Score Badge on Profile */
+.networkiq-score-badge {
+  margin: 20px 0;
+  padding: 16px;
+  background: var(--niq-bg);
+  border: 2px solid var(--niq-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  animation: slideIn 0.3s ease;
+}
+
+.niq-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.niq-score-number {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.niq-score-label {
+  font-size: 14px;
+  color: var(--niq-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Tier-based styling */
+.niq-tier-platinum {
+  background: linear-gradient(135deg, #E5E4E2, #D4D4D4);
+  color: #2C3E50;
+}
+
+.niq-tier-gold {
+  background: linear-gradient(135deg, #FFB800, #FFA000);
+  color: white;
+}
+
+.niq-tier-silver {
+  background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+  color: white;
+}
+
+.niq-tier-bronze {
+  background: linear-gradient(135deg, #CD7F32, #B87333);
+  color: white;
+}
+
+.niq-tier-standard {
+  background: linear-gradient(135deg, #7B78FF, #5E5ADB);
+  color: white;
+}
+
+/* Connection chips */
+.niq-connections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.niq-chip {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #F0F2F5;
+  border-radius: 16px;
+  font-size: 13px;
+  color: var(--niq-text);
+  font-weight: 500;
+}
+
+/* Message Box */
+.networkiq-message-box {
+  margin: 20px 0;
+  padding: 20px;
+  background: var(--niq-bg);
+  border: 2px solid var(--niq-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  animation: slideIn 0.3s ease;
+}
+
+.niq-message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.niq-message-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--niq-text);
+}
+
+.niq-tier-badge {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.niq-message-content {
+  margin-bottom: 16px;
+}
+
+.niq-message-text {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--niq-border);
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.niq-message-text:focus {
+  outline: none;
+  border-color: var(--niq-primary);
+  box-shadow: 0 0 0 3px rgba(94, 90, 219, 0.1);
+}
+
+/* Buttons */
+.niq-message-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.niq-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.niq-btn-primary {
+  background: var(--niq-primary);
+  color: white;
+}
+
+.niq-btn-primary:hover {
+  background: var(--niq-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(94, 90, 219, 0.3);
+}
+
+.niq-btn-secondary {
+  background: #F0F2F5;
+  color: var(--niq-text);
+}
+
+.niq-btn-secondary:hover {
+  background: #E4E6E9;
+}
+
+.niq-btn-connect {
+  background: var(--niq-success);
+  color: white;
+  margin-left: auto;
+}
+
+.niq-btn-connect:hover {
+  background: #00965F;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 168, 107, 0.3);
+}
+
+/* Score Breakdown */
+.niq-score-breakdown {
+  padding-top: 16px;
+  border-top: 1px solid var(--niq-border);
+}
+
+.niq-score-breakdown h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--niq-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.niq-breakdown-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.niq-breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  background: #F8F9FA;
+  border-radius: 6px;
+}
+
+.niq-breakdown-label {
+  font-size: 13px;
+  color: var(--niq-text);
+}
+
+.niq-breakdown-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--niq-success);
+}
+
+/* Floating Widget */
+.networkiq-widget {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  text-align: center;
+  min-width: 80px;
+  animation: slideUp 0.3s ease;
+}
+
+.niq-widget-score {
+  font-size: 28px;
+  font-weight: 700;
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.niq-widget-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--niq-text-light);
+  margin-bottom: 4px;
+}
+
+.niq-widget-usage {
+  font-size: 11px;
+  color: var(--niq-text-light);
+}
+
+/* Search Results Mini Score */
+.niq-search-score {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+}
+
+.niq-mini-score {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Toast Notifications */
+.networkiq-toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--niq-text);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.networkiq-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Modal */
+.networkiq-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  animation: fadeIn 0.3s ease;
+}
+
+.niq-modal-content {
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+.niq-modal-content h2 {
+  margin: 0 0 16px 0;
+  font-size: 24px;
+  color: var(--niq-text);
+}
+
+.niq-modal-content p {
+  margin: 0 0 20px 0;
+  color: var(--niq-text-light);
+  line-height: 1.5;
+}
+
+.niq-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px 0;
+}
+
+.niq-features li {
+  padding: 8px 0;
+  color: var(--niq-text);
+  font-size: 14px;
+}
+
+.niq-modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.niq-modal-actions .niq-btn {
+  flex: 1;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .niq-breakdown-items {
+    grid-template-columns: 1fr;
+  }
+  
+  .niq-message-actions {
+    flex-direction: column;
+  }
+  
+  .niq-btn-connect {
+    margin-left: 0;
+  }
+}
