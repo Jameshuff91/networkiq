@@ -135,7 +135,7 @@ class NetworkIQUI {
         <div class="niq-score-label">NetworkIQ</div>
       </div>
       <div class="niq-connections">
-        ${scoreData.connections.map(c => `<span class="niq-chip">${c}</span>`).join('')}
+        ${(scoreData.connections || scoreData.matches || []).map(c => `<span class="niq-chip">${c}</span>`).join('')}
       </div>
     `;
 
