@@ -121,3 +121,6 @@ The scoring system evaluates profiles based on:
 2. Check Console for content script errors
 3. Check chrome://extensions/ for service worker errors
 4. Use chrome.storage.local to inspect stored data
+
+commit to git after 10 or more file changes
+you may need to start servers/backend servers with nohup or detached state so you can continue to operate

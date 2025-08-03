@@ -16,7 +16,6 @@ import openai
 from pydantic import BaseModel, EmailStr
 import jwt
 from passlib.context import CryptContext
-import httpx
 
 # Load environment variables
 load_dotenv()
@@ -44,14 +43,42 @@ JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
 
 # Initialize services
 stripe.api_key = STRIPE_SECRET_KEY
-openai.api_key = OPENAI_API_KEY
+if OPENAI_API_KEY and not OPENAI_API_KEY.startswith("sk-test"):
+    openai.api_key = OPENAI_API_KEY
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# In-memory storage (replace with database in production)
-users_db = {}
-profiles_db = {}
-messages_db = {}
-usage_db = {}
+# In-memory storage with persistence
+import pickle
+from pathlib import Path
+
+DATA_DIR = Path("data")
+DATA_DIR.mkdir(exist_ok=True)
+
+def load_db(name, default=None):
+    """Load database from file"""
+    file_path = DATA_DIR / f"{name}.pkl"
+    if file_path.exists():
+        try:
+            with open(file_path, 'rb') as f:
+                return pickle.load(f)
+        except Exception as e:
+            print(f"Error loading {name}: {e}")
+    return default if default is not None else {}
+
+def save_db(name, data):
+    """Save database to file"""
+    file_path = DATA_DIR / f"{name}.pkl"
+    try:
+        with open(file_path, 'wb') as f:
+            pickle.dump(data, f)
+    except Exception as e:
+        print(f"Error saving {name}: {e}")
+
+# Load existing data or initialize empty
+users_db = load_db("users", {})
+profiles_db = load_db("profiles", {})
+messages_db = load_db("messages", {})
+usage_db = load_db("usage", {})
 
 # Pydantic models
 class UserSignup(BaseModel):
@@ -135,6 +162,7 @@ async def signup(user_data: UserSignup):
         "created_at": datetime.utcnow().isoformat()
     }
     users_db[user_data.email] = user
+    save_db("users", users_db)  # Persist data
     
     # Create access token
     access_token = create_access_token({"sub": user_id})
@@ -244,6 +272,7 @@ async def score_profile(
     
     # Update usage
     daily_usage["scores"] += 1
+    save_db("usage", usage_db)  # Persist usage
     
     # Store profile
     profile_id = f"profile_{len(profiles_db) + 1}"
@@ -257,6 +286,7 @@ async def score_profile(
         "connections": connections,
         "created_at": datetime.utcnow().isoformat()
     }
+    save_db("profiles", profiles_db)  # Persist profiles
     
     return {
         "profile_id": profile_id,
@@ -290,33 +320,50 @@ async def generate_message(
         
         daily_usage["messages"] += 1
     
-    # Generate message with OpenAI
+    # Generate message (use OpenAI if available, otherwise use templates)
     try:
         profile = message_data.profile_data
         connections = message_data.score_data.get("connections", [])
         
-        prompt = f"""
-        Create a personalized LinkedIn connection request message.
-        
-        Profile: {profile.get('name')} at {profile.get('company')}
-        Title: {profile.get('title')}
-        Shared connections: {', '.join(connections)}
-        
-        Write a brief, warm message (under 280 characters) that references shared background.
-        Be authentic and specific. Don't be salesy.
-        """
-        
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an expert at writing personalized LinkedIn messages."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=100,
-            temperature=0.7
-        )
-        
-        message_text = response.choices[0].message.content.strip()
+        # Check if OpenAI key is valid
+        if OPENAI_API_KEY and not OPENAI_API_KEY.startswith("sk-test"):
+            prompt = f"""
+            Create a personalized LinkedIn connection request message.
+            
+            Profile: {profile.get('name')} at {profile.get('company')}
+            Title: {profile.get('title')}
+            Shared connections: {', '.join(connections)}
+            
+            Write a brief, warm message (under 280 characters) that references shared background.
+            Be authentic and specific. Don't be salesy.
+            """
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an expert at writing personalized LinkedIn messages."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=100,
+                temperature=0.7
+            )
+            
+            message_text = response.choices[0].message.content.strip()
+        else:
+            # Use template-based messages for testing
+            name = profile.get('name', 'there')
+            company = profile.get('company', 'your company')
+            
+            templates = [
+                f"Hi {name}, I noticed we both {connections[0] if connections else 'share similar backgrounds'}. Would love to connect and exchange insights about {company}.",
+                f"Hi {name}, your experience at {company} caught my attention. As someone with {connections[0] if connections else 'shared interests'}, I'd value connecting with you.",
+                f"Hi {name}, I see we have {connections[0] if connections else 'common ground'}. Your work at {company} aligns with my interests. Let's connect!",
+            ]
+            
+            # Pick template based on profile hash (consistent but varied)
+            import hashlib
+            profile_hash = int(hashlib.md5(str(profile).encode()).hexdigest()[:8], 16)
+            message_text = templates[profile_hash % len(templates)]
         
         # Store message
         message_id = f"msg_{len(messages_db) + 1}"
@@ -327,6 +374,7 @@ async def generate_message(
             "message": message_text,
             "created_at": datetime.utcnow().isoformat()
         }
+        save_db("messages", messages_db)  # Persist messages
         
         return {
             "message_id": message_id,
@@ -344,6 +392,9 @@ async def create_checkout(
     current_user: dict = Depends(get_current_user)
 ):
     """Create Stripe checkout session"""
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Payment system not configured. Contact support.")
+    
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
@@ -395,6 +446,7 @@ async def stripe_webhook(request: Request):
                 user["subscription_tier"] = "pro"
                 user["stripe_customer_id"] = session['customer']
                 user["stripe_subscription_id"] = session['subscription']
+                save_db("users", users_db)  # Persist user updates
                 break
     
     elif event['type'] == 'customer.subscription.deleted':
@@ -404,6 +456,7 @@ async def stripe_webhook(request: Request):
         for email, user in users_db.items():
             if user.get("stripe_subscription_id") == subscription['id']:
                 user["subscription_tier"] = "free"
+                save_db("users", users_db)  # Persist user updates
                 break
     
     return {"status": "success"}

@@ -31,6 +31,8 @@ yarn-error.log*
 db_backup.json
 *.db
 *.sqlite
+data/
+*.pkl
 
 # Logs
 *.log
