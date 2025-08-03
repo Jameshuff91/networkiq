@@ -147,60 +147,131 @@ class NetworkIQUI {
   }
 
   createMessageBox(profile, scoreData) {
-    // Remove existing box
-    const existing = document.querySelector('.networkiq-message-box');
+    // Remove existing sidebar
+    const existing = document.querySelector('.networkiq-sidebar');
     if (existing) existing.remove();
 
     // Generate message
     const message = this.scorer.generateMessage(profile, scoreData);
 
-    // Create message box
-    const box = document.createElement('div');
-    box.className = 'networkiq-message-box';
-    box.innerHTML = `
-      <div class="niq-message-header">
-        <h3>📝 Suggested Connection Message</h3>
-        <span class="niq-tier-badge niq-tier-${scoreData.tier}">${scoreData.tier.toUpperCase()}</span>
-      </div>
-      <div class="niq-message-content">
-        <textarea class="niq-message-text" readonly>${message}</textarea>
-        <div class="niq-message-actions">
-          <button class="niq-btn niq-btn-primary" id="niq-copy-message">
-            📋 Copy Message
-          </button>
-          <button class="niq-btn niq-btn-secondary" id="niq-regenerate">
-            🔄 Generate New
-          </button>
-          <button class="niq-btn niq-btn-connect" id="niq-connect">
-            ➤ Connect Now
-          </button>
+    // Create sidebar container
+    const sidebar = document.createElement('div');
+    sidebar.className = 'networkiq-sidebar';
+    sidebar.innerHTML = `
+      <div class="niq-sidebar-header">
+        <div class="niq-sidebar-title">
+          <h3>NetworkIQ Assistant</h3>
+          <button class="niq-sidebar-toggle" id="niq-toggle-sidebar">_</button>
+        </div>
+        <div class="niq-score-display">
+          <span class="niq-score-large niq-tier-${scoreData.tier}">${scoreData.score}</span>
+          <span class="niq-score-label">${scoreData.tier.toUpperCase()} MATCH</span>
         </div>
       </div>
-      <div class="niq-score-breakdown">
-        <h4>Score Breakdown</h4>
-        <div class="niq-breakdown-items">
-          ${Object.entries(scoreData.breakdown)
-            .filter(([_, value]) => value > 0)
-            .map(([key, value]) => `
-              <div class="niq-breakdown-item">
-                <span class="niq-breakdown-label">${this.formatLabel(key)}</span>
-                <span class="niq-breakdown-value">+${value}</span>
-              </div>
-            `).join('')}
+      
+      <div class="niq-sidebar-content">
+        <div class="niq-section">
+          <h4>💡 Connection Insights</h4>
+          <div class="niq-insights">
+            ${(scoreData.matches || []).slice(0, 3).map(match => 
+              `<div class="niq-insight-chip">✓ ${match}</div>`
+            ).join('') || '<div class="niq-insight-chip">No direct matches found</div>'}
+          </div>
+        </div>
+
+        <div class="niq-section">
+          <h4>📝 Personalized Message</h4>
+          <textarea class="niq-message-text" id="niq-message-textarea">${message}</textarea>
+          <div class="niq-message-actions">
+            <button class="niq-btn niq-btn-primary" id="niq-copy-message">
+              📋 Copy
+            </button>
+            <button class="niq-btn niq-btn-secondary" id="niq-regenerate">
+              🔄 Regenerate
+            </button>
+            <button class="niq-btn niq-btn-connect" id="niq-connect">
+              ➤ Send
+            </button>
+          </div>
+        </div>
+
+        <div class="niq-section niq-score-details">
+          <h4>📊 Score Breakdown</h4>
+          <div class="niq-breakdown-items">
+            ${Object.entries(scoreData.breakdown || {})
+              .filter(([_, value]) => value > 0)
+              .map(([key, value]) => `
+                <div class="niq-breakdown-item">
+                  <span class="niq-breakdown-label">${this.formatLabel(key)}</span>
+                  <span class="niq-breakdown-value">+${value}</span>
+                </div>
+              `).join('') || '<div class="niq-breakdown-item">Base score applied</div>'}
+          </div>
+        </div>
+
+        <div class="niq-section niq-tips">
+          <h4>💬 Connection Tips</h4>
+          <ul>
+            ${this.getConnectionTips(scoreData.tier).map(tip => 
+              `<li>${tip}</li>`
+            ).join('')}
+          </ul>
+        </div>
+      </div>
+
+      <div class="niq-sidebar-footer">
+        <div class="niq-usage-info">
+          ${this.testMode ? 'TEST MODE' : 
+            this.userTier === 'free' ? 
+              `${10 - this.dailyUsage} scores left today` : 
+              'PRO Account'}
         </div>
       </div>
     `;
 
-    // Find injection point (after about section or profile header)
-    const aboutSection = document.querySelector('[class*="pv-about-section"]');
-    const injectPoint = aboutSection || document.querySelector('.pv-top-card');
-    
-    if (injectPoint) {
-      injectPoint.insertAdjacentElement('afterend', box);
-    }
+    // Add to page
+    document.body.appendChild(sidebar);
 
-    // Add event listeners
-    this.attachMessageBoxListeners(message);
+    // Make the textarea editable
+    const textarea = sidebar.querySelector('#niq-message-textarea');
+    textarea.removeAttribute('readonly');
+
+    // Attach event listeners
+    this.attachMessageBoxListeners(textarea.value);
+
+    // Add toggle functionality
+    document.getElementById('niq-toggle-sidebar')?.addEventListener('click', () => {
+      sidebar.classList.toggle('niq-sidebar-minimized');
+      const toggleBtn = document.getElementById('niq-toggle-sidebar');
+      toggleBtn.textContent = sidebar.classList.contains('niq-sidebar-minimized') ? '□' : '_';
+    });
+
+    // Update message variable when user edits
+    textarea.addEventListener('input', (e) => {
+      this.currentMessage = e.target.value;
+    });
+  }
+
+  getConnectionTips(tier) {
+    if (tier === 'high') {
+      return [
+        'Mention your shared background early',
+        'Reference specific mutual interests',
+        'Keep the message concise and personal'
+      ];
+    } else if (tier === 'medium') {
+      return [
+        'Find a unique angle to stand out',
+        'Show genuine interest in their work',
+        'Suggest a specific way to add value'
+      ];
+    } else {
+      return [
+        'Research their recent activity first',
+        'Find a mutual connection if possible',
+        'Be clear about why you want to connect'
+      ];
+    }
   }
 
   createFloatingWidget(scoreData) {
@@ -217,11 +288,23 @@ class NetworkIQUI {
       </div>
       <div class="niq-widget-label">NetworkIQ</div>
       <div class="niq-widget-usage">
-        ${this.userTier === 'free' ? `${10 - this.dailyUsage} scores left today` : 'PRO'}
+        ${this.testMode ? 'TEST' : this.userTier === 'free' ? `${10 - this.dailyUsage} left` : 'PRO'}
       </div>
     `;
 
     document.body.appendChild(widget);
+
+    // Make widget clickable to toggle sidebar
+    widget.addEventListener('click', () => {
+      const sidebar = document.querySelector('.networkiq-sidebar');
+      if (sidebar) {
+        sidebar.classList.toggle('niq-sidebar-minimized');
+        const toggleBtn = document.getElementById('niq-toggle-sidebar');
+        if (toggleBtn) {
+          toggleBtn.textContent = sidebar.classList.contains('niq-sidebar-minimized') ? '□' : '_';
+        }
+      }
+    });
   }
 
   attachMessageBoxListeners(message) {

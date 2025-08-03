@@ -238,7 +238,165 @@
   color: var(--niq-success);
 }
 
-/* Floating Widget */
+/* NetworkIQ Sidebar */
+.networkiq-sidebar {
+  position: fixed;
+  right: 0;
+  top: 80px;
+  width: 360px;
+  height: calc(100vh - 100px);
+  background: white;
+  border-left: 2px solid var(--niq-primary);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+}
+
+.networkiq-sidebar.niq-sidebar-minimized {
+  transform: translateX(320px);
+}
+
+.niq-sidebar-header {
+  background: linear-gradient(135deg, var(--niq-primary), var(--niq-secondary));
+  color: white;
+  padding: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.niq-sidebar-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.niq-sidebar-title h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.niq-sidebar-toggle {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.niq-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.niq-score-display {
+  text-align: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.niq-score-large {
+  font-size: 36px;
+  font-weight: 700;
+  display: block;
+}
+
+.niq-score-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.9;
+}
+
+.niq-sidebar-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.niq-section {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.niq-section:last-child {
+  border-bottom: none;
+}
+
+.niq-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.niq-insights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.niq-insight-chip {
+  background: #f0fdf4;
+  color: #16a34a;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  border: 1px solid #86efac;
+}
+
+#niq-message-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  margin-bottom: 12px;
+}
+
+#niq-message-textarea:focus {
+  outline: none;
+  border-color: var(--niq-primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.niq-tips ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.niq-tips li {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.niq-sidebar-footer {
+  padding: 16px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.niq-usage-info {
+  text-align: center;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Floating Widget - now smaller since we have sidebar */
 .networkiq-widget {
   position: fixed;
   bottom: 20px;
@@ -247,10 +405,11 @@
   border-radius: 12px;
   padding: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
+  z-index: 9997;
   text-align: center;
   min-width: 80px;
   animation: slideUp 0.3s ease;
+  cursor: pointer;
 }
 
 .niq-widget-score {
