@@ -23,12 +23,15 @@ class NetworkIQUI {
       const url = location.href;
       if (url !== lastUrl) {
         lastUrl = url;
-        setTimeout(() => this.onPageChange(), 1000);
+        // Increase delay for search pages to load
+        const delay = url.includes('/search/') ? 2000 : 1000;
+        setTimeout(() => this.onPageChange(), delay);
       }
     }).observe(document, { subtree: true, childList: true });
 
-    // Initial load
-    this.onPageChange();
+    // Initial load with delay for search pages
+    const initialDelay = location.href.includes('/search/') ? 2000 : 500;
+    setTimeout(() => this.onPageChange(), initialDelay);
   }
 
   async loadUserSettings() {
@@ -66,10 +69,17 @@ class NetworkIQUI {
   }
 
   onPageChange() {
+    const url = window.location.href;
+    console.log('NetworkIQ: Page changed to:', url);
+    
     if (LinkedInParser.isProfilePage()) {
+      console.log('NetworkIQ: Detected profile page');
       this.injectProfileScore();
     } else if (LinkedInParser.isSearchPage()) {
+      console.log('NetworkIQ: Detected search page - starting batch scoring');
       this.injectSearchScores();
+    } else {
+      console.log('NetworkIQ: Not a profile or search page');
     }
   }
 
