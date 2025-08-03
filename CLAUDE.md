@@ -124,3 +124,4 @@ The scoring system evaluates profiles based on:
 
 commit to git after 10 or more file changes
 you may need to start servers/backend servers with nohup or detached state so you can continue to operate
+NEVER create mock data unless specifically granted by the user 
