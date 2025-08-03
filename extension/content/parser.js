@@ -239,20 +239,101 @@ class LinkedInParser {
    */
   static getSearchResultProfiles() {
     const profiles = [];
-    const links = document.querySelectorAll('a[href*="/in/"]');
     
-    links.forEach(link => {
-      const url = link.href;
-      const name = link.querySelector('[class*="entity-result__title-text"] span[aria-hidden="true"]')?.textContent?.trim();
-      const title = link.querySelector('[class*="entity-result__primary-subtitle"]')?.textContent?.trim();
-      const location = link.querySelector('[class*="entity-result__secondary-subtitle"]')?.textContent?.trim();
+    // Get all search result cards - LinkedIn uses different structures
+    const resultCards = document.querySelectorAll(
+      '.entity-result__item, ' +
+      '.reusable-search__result-container, ' + 
+      'li[class*="reusable-search__result-container"], ' +
+      'div[data-chameleon-result-urn]'
+    );
+    
+    resultCards.forEach(card => {
+      // Find the main profile link
+      const link = card.querySelector('a[href*="/in/"]');
+      if (!link) return;
+      
+      const url = link.href.split('?')[0]; // Clean URL
+      
+      // Extract name - LinkedIn has multiple possible selectors
+      const nameElement = card.querySelector(
+        '.entity-result__title-text span[aria-hidden="true"], ' +
+        '.entity-result__title-line span[dir="ltr"] > span[aria-hidden="true"], ' +
+        'span[class*="entity-result__title-text"] span[aria-hidden="true"]'
+      );
+      const name = nameElement?.textContent?.trim();
+      
+      // Get title/headline
+      const titleElement = card.querySelector(
+        '.entity-result__primary-subtitle, ' +
+        '[class*="primary-subtitle"], ' +
+        '.t-14.t-black.t-normal'
+      );
+      const title = titleElement?.textContent?.trim();
+      
+      // Get location
+      const locationElement = card.querySelector(
+        '.entity-result__secondary-subtitle, ' +
+        '[class*="secondary-subtitle"], ' +
+        '.t-12.t-black--light.t-normal'
+      );
+      const location = locationElement?.textContent?.trim();
+      
+      // Get summary/snippet text if available
+      const summaryElement = card.querySelector(
+        '.entity-result__summary, ' +
+        '[class*="summary"], ' +
+        '.entity-result__divider + .t-12'
+      );
+      const summary = summaryElement?.textContent?.trim();
+      
+      // Get mutual connections if shown
+      const mutualElement = card.querySelector(
+        '[class*="shared-connections"], ' +
+        '[class*="mutual"], ' +
+        '.entity-result__insights span'
+      );
+      const mutualConnections = mutualElement?.textContent?.trim();
+      
+      // Extract company from title
+      let company = '';
+      if (title) {
+        // Try to extract company from title (e.g., "Software Engineer at Google")
+        const atIndex = title.toLowerCase().indexOf(' at ');
+        if (atIndex > -1) {
+          company = title.substring(atIndex + 4).trim();
+        } else if (title.includes('·')) {
+          // Sometimes format is "Title · Company"
+          const parts = title.split('·');
+          if (parts.length > 1) {
+            company = parts[1].trim();
+          }
+        }
+      }
+      
+      // Get profile image for visual appeal
+      const imageElement = card.querySelector(
+        'img[class*="presence-entity__image"], ' +
+        'img[class*="entity-image"], ' +
+        'img[class*="EntityPhoto"]'
+      );
+      const imageUrl = imageElement?.src;
+      
+      // Get the full text content for better matching
+      const fullText = `${name} ${title} ${company} ${location} ${summary}`.toLowerCase();
       
       if (name && !profiles.find(p => p.url === url)) {
         profiles.push({
           url,
           name,
-          title,
-          location
+          title: title || '',
+          company: company || '',
+          location: location || '',
+          summary: summary || '',
+          mutualConnections: mutualConnections || '',
+          imageUrl: imageUrl || '',
+          fullText: fullText,
+          cardElement: card // Store reference to the card for easier manipulation
         });
       }
     });

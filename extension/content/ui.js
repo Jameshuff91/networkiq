@@ -364,26 +364,402 @@ class NetworkIQUI {
     }
   }
 
-  injectSearchScores() {
-    // Add mini scores to search results
+  async injectSearchScores() {
+    // Enhanced batch scoring for search results
+    console.log('NetworkIQ: Starting batch scoring for search results...');
+    
+    // Get all profiles from search results
     const profiles = LinkedInParser.getSearchResultProfiles();
+    if (profiles.length === 0) {
+      console.log('NetworkIQ: No profiles found on search page');
+      return;
+    }
+    
+    console.log(`NetworkIQ: Found ${profiles.length} profiles to score`);
+    
+    // Create summary bar if not exists
+    this.createSummaryBar();
+    
+    // Score all profiles
+    const scoredProfiles = [];
+    let highScoreCount = 0;
+    let mediumScoreCount = 0;
+    let lowScoreCount = 0;
     
     profiles.forEach(profile => {
-      // Quick score based on limited data
-      const quickScore = this.calculateQuickScore(profile);
+      // Calculate comprehensive score using resume data
+      const scoreData = this.scorer.calculateScore({
+        name: profile.name,
+        title: profile.title,
+        company: profile.company,
+        location: profile.location,
+        text: profile.fullText || `${profile.name} ${profile.title} ${profile.company} ${profile.location} ${profile.summary}`.toLowerCase(),
+        about: profile.summary || ''
+      });
       
-      // Find the profile card
-      const card = document.querySelector(`a[href="${profile.url}"]`)?.closest('[class*="entity-result"]');
-      if (card && !card.querySelector('.niq-search-score')) {
-        const scoreBadge = document.createElement('div');
-        scoreBadge.className = 'niq-search-score';
-        scoreBadge.innerHTML = `
-          <span class="niq-mini-score niq-tier-${this.getTierFromScore(quickScore)}">
-            ${quickScore}
-          </span>
-        `;
-        card.appendChild(scoreBadge);
+      // Store scored profile
+      scoredProfiles.push({
+        ...profile,
+        score: scoreData.score,
+        tier: scoreData.tier,
+        matches: scoreData.matches
+      });
+      
+      // Count by tier
+      if (scoreData.tier === 'high') highScoreCount++;
+      else if (scoreData.tier === 'medium') mediumScoreCount++;
+      else lowScoreCount++;
+      
+      // Add visual badge to the profile card
+      this.addScoreBadgeToCard(profile, scoreData);
+    });
+    
+    // Update summary bar
+    this.updateSummaryBar(scoredProfiles, highScoreCount, mediumScoreCount, lowScoreCount);
+    
+    // Store scored profiles for later use (sorting, export, etc.)
+    this.scoredProfiles = scoredProfiles;
+    
+    // Add hover tooltips
+    this.addHoverTooltips();
+    
+    console.log(`NetworkIQ: Batch scoring complete. High: ${highScoreCount}, Medium: ${mediumScoreCount}, Low: ${lowScoreCount}`);
+  }
+  
+  createSummaryBar() {
+    // Remove existing summary bar
+    const existing = document.querySelector('.networkiq-summary-bar');
+    if (existing) existing.remove();
+    
+    // Create summary bar
+    const summaryBar = document.createElement('div');
+    summaryBar.className = 'networkiq-summary-bar';
+    summaryBar.innerHTML = `
+      <div class="niq-summary-content">
+        <div class="niq-summary-logo">
+          <span class="niq-logo-icon">🎯</span>
+          <span class="niq-logo-text">NetworkIQ</span>
+        </div>
+        
+        <div class="niq-summary-stats">
+          <div class="niq-stat">
+            <span class="niq-stat-value" id="niq-total-profiles">0</span>
+            <span class="niq-stat-label">Profiles</span>
+          </div>
+          <div class="niq-stat niq-stat-high">
+            <span class="niq-stat-value" id="niq-high-matches">0</span>
+            <span class="niq-stat-label">High</span>
+          </div>
+          <div class="niq-stat niq-stat-medium">
+            <span class="niq-stat-value" id="niq-medium-matches">0</span>
+            <span class="niq-stat-label">Medium</span>
+          </div>
+          <div class="niq-stat niq-stat-low">
+            <span class="niq-stat-value" id="niq-low-matches">0</span>
+            <span class="niq-stat-label">Low</span>
+          </div>
+        </div>
+        
+        <div class="niq-summary-actions">
+          <button class="niq-action-btn" id="niq-sort-btn" title="Sort by score">
+            ↕️ Sort
+          </button>
+          <button class="niq-action-btn" id="niq-filter-btn" title="Filter results">
+            🔍 Filter
+          </button>
+          <button class="niq-action-btn" id="niq-export-btn" title="Export to CSV">
+            📊 Export
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Find insertion point (top of search results)
+    const searchResults = document.querySelector('.search-results-container, [class*="search-results"], .scaffold-layout__main');
+    if (searchResults) {
+      searchResults.insertBefore(summaryBar, searchResults.firstChild);
+    } else {
+      // Fallback to body
+      document.body.insertBefore(summaryBar, document.body.firstChild);
+    }
+    
+    // Attach event listeners
+    this.attachSummaryBarListeners();
+  }
+  
+  updateSummaryBar(profiles, high, medium, low) {
+    document.getElementById('niq-total-profiles').textContent = profiles.length;
+    document.getElementById('niq-high-matches').textContent = high;
+    document.getElementById('niq-medium-matches').textContent = medium;
+    document.getElementById('niq-low-matches').textContent = low;
+  }
+  
+  addScoreBadgeToCard(profile, scoreData) {
+    // Find the profile card element
+    const card = profile.cardElement || 
+                 document.querySelector(`a[href*="${profile.url.split('/in/')[1]}"]`)?.closest('.entity-result__item, .reusable-search__result-container, li[class*="reusable-search__result-container"], div[data-chameleon-result-urn]');
+    
+    if (!card) {
+      console.log(`NetworkIQ: Could not find card for ${profile.name}`);
+      return;
+    }
+    
+    // Check if badge already exists
+    if (card.querySelector('.niq-search-badge')) return;
+    
+    // Create score badge
+    const badge = document.createElement('div');
+    badge.className = 'niq-search-badge';
+    badge.innerHTML = `
+      <div class="niq-badge-score niq-tier-${scoreData.tier}" data-profile-url="${profile.url}">
+        <span class="niq-badge-number">${scoreData.score}</span>
+        <span class="niq-badge-label">NIQ</span>
+      </div>
+      ${scoreData.matches && scoreData.matches.length > 0 ? 
+        `<div class="niq-badge-matches">${scoreData.matches.slice(0, 2).map(m => m.text).join(' • ')}</div>` : 
+        ''}
+    `;
+    
+    // Add badge to the card
+    // Try to insert it near the name/title area
+    const titleArea = card.querySelector('.entity-result__title-line, [class*="entity-result__title"]');
+    if (titleArea) {
+      titleArea.style.position = 'relative';
+      badge.style.position = 'absolute';
+      badge.style.top = '0';
+      badge.style.right = '0';
+      titleArea.appendChild(badge);
+    } else {
+      // Fallback: add to the card itself
+      card.style.position = 'relative';
+      card.appendChild(badge);
+    }
+    
+    // Add click handler to view full profile with score
+    badge.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.showProfileQuickView(profile, scoreData);
+    });
+  }
+  
+  showProfileQuickView(profile, scoreData) {
+    // Create modal for quick profile view
+    const modal = document.createElement('div');
+    modal.className = 'networkiq-quickview-modal';
+    modal.innerHTML = `
+      <div class="niq-quickview-content">
+        <button class="niq-quickview-close" id="niq-close-quickview">✕</button>
+        
+        <div class="niq-quickview-header">
+          ${profile.imageUrl ? `<img src="${profile.imageUrl}" class="niq-quickview-avatar">` : ''}
+          <div class="niq-quickview-info">
+            <h3>${profile.name}</h3>
+            <p>${profile.title}</p>
+            ${profile.company ? `<p class="niq-quickview-company">${profile.company}</p>` : ''}
+            ${profile.location ? `<p class="niq-quickview-location">📍 ${profile.location}</p>` : ''}
+          </div>
+          <div class="niq-quickview-score niq-tier-${scoreData.tier}">
+            <span class="niq-score-number">${scoreData.score}</span>
+            <span class="niq-score-label">NetworkIQ</span>
+          </div>
+        </div>
+        
+        <div class="niq-quickview-body">
+          ${scoreData.matches && scoreData.matches.length > 0 ? `
+            <div class="niq-quickview-section">
+              <h4>🔗 Connections</h4>
+              <div class="niq-quickview-matches">
+                ${scoreData.matches.map(m => 
+                  `<span class="niq-match-chip">${m.text} (+${m.weight})</span>`
+                ).join('')}
+              </div>
+            </div>
+          ` : ''}
+          
+          <div class="niq-quickview-section">
+            <h4>💬 Suggested Message</h4>
+            <textarea class="niq-quickview-message" id="niq-quickview-message">
+${this.scorer.generateMessage(profile, scoreData)}
+            </textarea>
+          </div>
+          
+          <div class="niq-quickview-actions">
+            <button class="niq-btn niq-btn-primary" id="niq-copy-quickview-message">
+              📋 Copy Message
+            </button>
+            <a href="${profile.url}" target="_blank" class="niq-btn niq-btn-secondary">
+              👤 View Full Profile
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    document.getElementById('niq-close-quickview').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+    
+    document.getElementById('niq-copy-quickview-message')?.addEventListener('click', () => {
+      const message = document.getElementById('niq-quickview-message').value;
+      navigator.clipboard.writeText(message);
+      this.showToast('Message copied!');
+    });
+  }
+  
+  attachSummaryBarListeners() {
+    // Sort button
+    document.getElementById('niq-sort-btn')?.addEventListener('click', () => {
+      this.sortSearchResults();
+    });
+    
+    // Filter button
+    document.getElementById('niq-filter-btn')?.addEventListener('click', () => {
+      this.showFilterModal();
+    });
+    
+    // Export button
+    document.getElementById('niq-export-btn')?.addEventListener('click', () => {
+      this.exportToCSV();
+    });
+  }
+  
+  sortSearchResults() {
+    if (!this.scoredProfiles || this.scoredProfiles.length === 0) return;
+    
+    // Toggle sort order
+    this.sortOrder = this.sortOrder === 'desc' ? 'asc' : 'desc';
+    
+    // Sort profiles
+    const sorted = [...this.scoredProfiles].sort((a, b) => {
+      return this.sortOrder === 'desc' ? b.score - a.score : a.score - b.score;
+    });
+    
+    // Find the container with all result cards
+    const container = document.querySelector('.search-results-container, [class*="search-results"] > ul, .scaffold-layout__list');
+    if (!container) return;
+    
+    // Reorder DOM elements
+    sorted.forEach(profile => {
+      const card = profile.cardElement || 
+                   document.querySelector(`a[href*="${profile.url.split('/in/')[1]}"]`)?.closest('.entity-result__item, .reusable-search__result-container');
+      if (card && card.parentElement) {
+        card.parentElement.appendChild(card);
       }
+    });
+    
+    this.showToast(`Sorted by score (${this.sortOrder === 'desc' ? 'high to low' : 'low to high'})`);
+  }
+  
+  showFilterModal() {
+    const modal = document.createElement('div');
+    modal.className = 'networkiq-filter-modal';
+    modal.innerHTML = `
+      <div class="niq-filter-content">
+        <h3>Filter Results</h3>
+        <div class="niq-filter-options">
+          <label>
+            <input type="checkbox" id="niq-filter-high" checked>
+            <span class="niq-filter-label niq-tier-high">High Matches (70+)</span>
+          </label>
+          <label>
+            <input type="checkbox" id="niq-filter-medium" checked>
+            <span class="niq-filter-label niq-tier-medium">Medium Matches (40-69)</span>
+          </label>
+          <label>
+            <input type="checkbox" id="niq-filter-low" checked>
+            <span class="niq-filter-label niq-tier-low">Low Matches (0-39)</span>
+          </label>
+        </div>
+        <div class="niq-filter-actions">
+          <button class="niq-btn niq-btn-primary" id="niq-apply-filter">Apply</button>
+          <button class="niq-btn niq-btn-secondary" id="niq-cancel-filter">Cancel</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    document.getElementById('niq-apply-filter').addEventListener('click', () => {
+      this.applyFilters();
+      modal.remove();
+    });
+    
+    document.getElementById('niq-cancel-filter').addEventListener('click', () => {
+      modal.remove();
+    });
+  }
+  
+  applyFilters() {
+    const showHigh = document.getElementById('niq-filter-high').checked;
+    const showMedium = document.getElementById('niq-filter-medium').checked;
+    const showLow = document.getElementById('niq-filter-low').checked;
+    
+    let hiddenCount = 0;
+    
+    this.scoredProfiles.forEach(profile => {
+      const card = profile.cardElement || 
+                   document.querySelector(`a[href*="${profile.url.split('/in/')[1]}"]`)?.closest('.entity-result__item, .reusable-search__result-container');
+      
+      if (card) {
+        let shouldShow = false;
+        if (profile.tier === 'high' && showHigh) shouldShow = true;
+        if (profile.tier === 'medium' && showMedium) shouldShow = true;
+        if (profile.tier === 'low' && showLow) shouldShow = true;
+        
+        card.style.display = shouldShow ? '' : 'none';
+        if (!shouldShow) hiddenCount++;
+      }
+    });
+    
+    this.showToast(`Filter applied. ${hiddenCount} profiles hidden.`);
+  }
+  
+  exportToCSV() {
+    if (!this.scoredProfiles || this.scoredProfiles.length === 0) {
+      this.showToast('No profiles to export');
+      return;
+    }
+    
+    // Create CSV content
+    const headers = ['Name', 'Score', 'Tier', 'Title', 'Company', 'Location', 'Matches', 'Profile URL'];
+    const rows = this.scoredProfiles.map(p => [
+      p.name,
+      p.score,
+      p.tier,
+      p.title || '',
+      p.company || '',
+      p.location || '',
+      (p.matches || []).map(m => m.text).join('; '),
+      p.url
+    ]);
+    
+    // Convert to CSV format
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `networkiq-scores-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    
+    URL.revokeObjectURL(url);
+    this.showToast('Scores exported to CSV');
+  }
+  
+  addHoverTooltips() {
+    // Add tooltips on hover for score badges
+    document.querySelectorAll('.niq-badge-score').forEach(badge => {
+      badge.title = 'Click for quick view and personalized message';
     });
   }
 
