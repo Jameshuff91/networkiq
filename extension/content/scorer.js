@@ -223,12 +223,19 @@ class NetworkScorer {
     const name = profile.name?.split(' ')[0] || 'there';
     const connections = scoreData.matches || [];
     
+    // Extract text from match objects
+    const getMatchText = (match) => {
+      if (!match) return null;
+      if (typeof match === 'string') return match;
+      return match.text || match.display || match.value || null;
+    };
+    
     // Build message based on score tier
     if (scoreData.tier === 'high') {
-      const commonality = connections[0] || 'your background';
+      const commonality = getMatchText(connections[0]) || 'your background';
       return `Hi ${name}! I noticed we share ${commonality}. Would love to connect and exchange insights about our field. Looking forward to learning from your experience!`;
     } else if (scoreData.tier === 'medium') {
-      const interest = connections[0] || profile.headline || 'your work';
+      const interest = getMatchText(connections[0]) || profile.headline || 'your work';
       return `Hi ${name}! I'm impressed by ${interest}. I'd appreciate the opportunity to connect and learn more about your journey. Best regards!`;
     } else {
       return `Hi ${name}! I came across your profile and would love to connect. I'm always interested in expanding my network with professionals in ${profile.headline || 'the industry'}. Looking forward to connecting!`;

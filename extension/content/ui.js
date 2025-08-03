@@ -195,9 +195,10 @@ class NetworkIQUI {
         <div class="niq-section">
           <h4>💡 Connection Insights</h4>
           <div class="niq-insights">
-            ${(scoreData.matches || []).slice(0, 3).map(match => 
-              `<div class="niq-insight-chip">✓ ${match}</div>`
-            ).join('') || '<div class="niq-insight-chip">No direct matches found</div>'}
+            ${(scoreData.matches || []).slice(0, 3).map(match => {
+              const matchText = typeof match === 'string' ? match : (match.text || match.display || match.value || '');
+              return `<div class="niq-insight-chip">✓ ${matchText}</div>`;
+            }).join('') || '<div class="niq-insight-chip">No direct matches found</div>'}
           </div>
         </div>
 
@@ -448,12 +449,14 @@ class NetworkIQUI {
       
       const scoreData = this.scorer.calculateScore(profileData);
       
-      // Store scored profile
+      // Store scored profile with properly serialized matches
       scoredProfiles.push({
         ...profile,
         score: scoreData.score,
         tier: scoreData.tier,
-        matches: scoreData.matches
+        matches: (scoreData.matches || []).map(m => 
+          typeof m === 'string' ? m : (m.text || m.display || m.value || '')
+        )
       });
       
       // Count by tier
