@@ -284,20 +284,48 @@ class LinkedInParser {
       console.log(`NetworkIQ: Found ${resultCards.length} cards via profile link approach`);
     }
     
-    resultCards.forEach(card => {
+    resultCards.forEach((card, index) => {
       // Find the main profile link
       const link = card.querySelector('a[href*="/in/"]');
-      if (!link) return;
+      if (!link) {
+        console.log(`NetworkIQ: Card ${index} has no profile link`);
+        return;
+      }
       
       const url = link.href.split('?')[0]; // Clean URL
       
-      // Extract name - LinkedIn has multiple possible selectors
-      const nameElement = card.querySelector(
-        '.entity-result__title-text span[aria-hidden="true"], ' +
-        '.entity-result__title-line span[dir="ltr"] > span[aria-hidden="true"], ' +
-        'span[class*="entity-result__title-text"] span[aria-hidden="true"]'
-      );
-      const name = nameElement?.textContent?.trim();
+      // Extract name - try multiple approaches
+      let name = '';
+      
+      // First try: specific selectors
+      const nameSelectors = [
+        '.entity-result__title-text span[aria-hidden="true"]',
+        '.entity-result__title-line span[dir="ltr"] > span[aria-hidden="true"]',
+        'span[class*="entity-result__title-text"] span[aria-hidden="true"]',
+        // New selectors
+        'span[aria-hidden="true"]',
+        '.ember-view span[aria-hidden="true"]',
+        'a[href*="/in/"] span[aria-hidden="true"]',
+        'a[href*="/in/"] span span'
+      ];
+      
+      for (const selector of nameSelectors) {
+        const nameElement = card.querySelector(selector);
+        if (nameElement?.textContent?.trim()) {
+          name = nameElement.textContent.trim();
+          break;
+        }
+      }
+      
+      // Fallback: get text from the profile link itself
+      if (!name) {
+        const linkText = link.textContent?.trim();
+        if (linkText && !linkText.includes('View') && !linkText.includes('profile')) {
+          name = linkText;
+        }
+      }
+      
+      console.log(`NetworkIQ: Card ${index} - Name: "${name}", URL: ${url}`);
       
       // Get title/headline
       const titleElement = card.querySelector(
@@ -358,10 +386,11 @@ class LinkedInParser {
       // Get the full text content for better matching
       const fullText = `${name} ${title} ${company} ${location} ${summary}`.toLowerCase();
       
-      if (name && !profiles.find(p => p.url === url)) {
-        profiles.push({
+      // Add profile if we have at least a URL (name might be empty on some cards)
+      if (url && !profiles.find(p => p.url === url)) {
+        const profile = {
           url,
-          name,
+          name: name || 'LinkedIn Member',  // Fallback for private profiles
           title: title || '',
           company: company || '',
           location: location || '',
@@ -370,7 +399,9 @@ class LinkedInParser {
           imageUrl: imageUrl || '',
           fullText: fullText,
           cardElement: card // Store reference to the card for easier manipulation
-        });
+        };
+        profiles.push(profile);
+        console.log(`NetworkIQ: Added profile ${profiles.length}:`, profile.name);
       }
     });
     
