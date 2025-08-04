@@ -969,8 +969,11 @@ ${this.scorer.generateMessage(profile, scoreData)}
     document.body.appendChild(modal);
     
     document.getElementById('niq-upgrade')?.addEventListener('click', () => {
-      // Send message to open Stripe checkout
-      chrome.runtime.sendMessage({ action: 'openStripeCheckout' });
+      // Send message to open Stripe checkout with Advanced price
+      chrome.runtime.sendMessage({ 
+        action: 'open_checkout',
+        priceId: 'price_1Rs5yIQaJlv206wSfUp4nf4u' // Advanced tier $20/month
+      });
       modal.remove();
     });
     

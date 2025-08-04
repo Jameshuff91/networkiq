@@ -177,7 +177,7 @@ function setupEventListeners() {
       // Create checkout session with Advanced price
       chrome.runtime.sendMessage({
         action: 'open_checkout',
-        priceId: 'price_1Rs5yIQaJlv206wSfUp4nf4u' // Advanced tier ($19/month)
+        priceId: 'price_1Rs5yIQaJlv206wSfUp4nf4u' // Advanced tier ($20/month)
       }, (response) => {
         if (response?.error) {
           console.error('Advanced checkout error:', response.error);

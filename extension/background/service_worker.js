@@ -404,12 +404,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       originalSendResponse({ success: true });
       break;
       
-    case 'openStripeCheckout':
-      // Open Stripe checkout with the $20/month Advanced plan
-      openStripeCheckout('price_1Rs5yIQaJlv206wSfUp4nf4u'); // Advanced tier $20/month
-      originalSendResponse({ success: true });
-      break;
-      
     case 'login':
       // Store auth data
       userState = {
