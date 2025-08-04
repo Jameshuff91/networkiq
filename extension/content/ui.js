@@ -99,7 +99,14 @@ class NetworkIQUI {
     try {
       // Skip daily limit check in test mode
       if (!this.testMode && this.userTier === 'free' && this.dailyUsage >= 10) {
-        this.showUpgradePrompt();
+        // Check if we've already shown the upgrade prompt today
+        const today = new Date().toDateString();
+        chrome.storage.local.get(['lastUpgradePromptDate'], (result) => {
+          if (result.lastUpgradePromptDate !== today) {
+            this.showUpgradePrompt();
+            chrome.storage.local.set({ lastUpgradePromptDate: today });
+          }
+        });
         return;
       }
 
@@ -950,7 +957,7 @@ ${this.scorer.generateMessage(profile, scoreData)}
         </ul>
         <div class="niq-modal-actions">
           <button class="niq-btn niq-btn-primary" id="niq-upgrade">
-            Upgrade for $19/month
+            Upgrade for $20/month
           </button>
           <button class="niq-btn niq-btn-secondary" id="niq-close-modal">
             Maybe Later
@@ -962,7 +969,8 @@ ${this.scorer.generateMessage(profile, scoreData)}
     document.body.appendChild(modal);
     
     document.getElementById('niq-upgrade')?.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ action: 'openUpgrade' });
+      // Send message to open Stripe checkout
+      chrome.runtime.sendMessage({ action: 'openStripeCheckout' });
       modal.remove();
     });
     
