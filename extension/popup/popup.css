@@ -709,3 +709,54 @@ body {
 .hidden {
   display: none !important;
 }
+/* Pricing Tiers */
+.pricing-tiers {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pricing-tier {
+  flex: 1;
+  padding: 12px;
+  background: white;
+  border: 1px solid #E1E5E9;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.pricing-tier.featured {
+  border: 2px solid #5E5ADB;
+  box-shadow: 0 2px 8px rgba(94, 90, 219, 0.15);
+}
+
+.pricing-tier h4 {
+  margin: 0 0 8px 0;
+  color: #2C3E50;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pricing-tier .price {
+  font-size: 20px;
+  font-weight: bold;
+  color: #5E5ADB;
+  margin: 8px 0;
+  display: block;
+}
+
+.pricing-tier .price span {
+  font-size: 12px;
+  font-weight: normal;
+  color: #6B7280;
+}
+
+.pricing-tier .feature-list {
+  margin: 12px 0;
+  padding: 0;
+}
+
+.pricing-tier .feature-list li {
+  font-size: 11px;
+  padding: 3px 0;
+}

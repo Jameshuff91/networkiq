@@ -104,16 +104,37 @@
 
     <!-- Upgrade CTA (Free users) -->
     <div class="upgrade-section" id="upgradeSection">
-      <h3>🚀 Unlock Pro Features</h3>
-      <ul class="feature-list">
-        <li>Unlimited profile scoring</li>
-        <li>AI-powered messages</li>
-        <li>Advanced analytics</li>
-        <li>Export connections</li>
-      </ul>
-      <button class="action-btn upgrade" id="upgradeBtn">
-        Upgrade for $19/month
-      </button>
+      <h3>🚀 Choose Your Plan</h3>
+      
+      <div class="pricing-tiers">
+        <div class="pricing-tier">
+          <h4>Basic</h4>
+          <p class="price">$5<span>/month</span></p>
+          <ul class="feature-list">
+            <li>100 profile scores/day</li>
+            <li>20 AI messages/day</li>
+            <li>Basic analytics</li>
+          </ul>
+          <button class="action-btn upgrade" data-price-id="basic" id="upgradeBasicBtn">
+            Choose Basic
+          </button>
+        </div>
+        
+        <div class="pricing-tier featured">
+          <h4>Advanced</h4>
+          <p class="price">$19<span>/month</span></p>
+          <ul class="feature-list">
+            <li>Unlimited profile scoring</li>
+            <li>Unlimited AI messages</li>
+            <li>Advanced analytics</li>
+            <li>Export connections</li>
+            <li>Priority support</li>
+          </ul>
+          <button class="action-btn upgrade primary" data-price-id="advanced" id="upgradeAdvancedBtn">
+            Choose Advanced
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Footer -->

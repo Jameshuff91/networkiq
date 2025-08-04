@@ -151,12 +151,29 @@ function setupEventListeners() {
   // Resume file selection
   document.getElementById('resumeUpload')?.addEventListener('change', handleResumeUpload);
   
-  // Upgrade button
-  document.getElementById('upgradeBtn')?.addEventListener('click', async () => {
+  // Basic tier upgrade button
+  document.getElementById('upgradeBasicBtn')?.addEventListener('click', async () => {
     const result = await chrome.storage.local.get(['authToken']);
     if (result.authToken) {
-      // Create checkout session
-      createCheckoutSession(result.authToken);
+      // Create checkout session with Basic price
+      chrome.runtime.sendMessage({
+        action: 'open_checkout',
+        priceId: 'price_1Rs5yHQaJlv206wSslm2yAQT' // Basic tier ($5/month)
+      });
+    } else {
+      showLoginUI();
+    }
+  });
+  
+  // Advanced tier upgrade button
+  document.getElementById('upgradeAdvancedBtn')?.addEventListener('click', async () => {
+    const result = await chrome.storage.local.get(['authToken']);
+    if (result.authToken) {
+      // Create checkout session with Advanced price
+      chrome.runtime.sendMessage({
+        action: 'open_checkout',
+        priceId: 'price_1Rs5yIQaJlv206wSfUp4nf4u' // Advanced tier ($19/month)
+      });
     } else {
       showLoginUI();
     }
@@ -1027,22 +1044,6 @@ async function enableTestMode() {
   window.location.reload();
 }
 
-async function createCheckoutSession(token) {
-  try {
-    // Use the service worker to handle checkout
-    chrome.runtime.sendMessage({
-      action: 'open_checkout',
-      priceId: 'price_1234' // This should be your actual Stripe price ID
-    }, (response) => {
-      if (response?.error) {
-        showStatus('Failed to open checkout: ' + response.error, 'error');
-      }
-    });
-  } catch (error) {
-    console.error('Checkout error:', error);
-    showStatus('Failed to start checkout. Please try again.', 'error');
-  }
-}
 
 // Add additional CSS for login UI
 const style = document.createElement('style');
