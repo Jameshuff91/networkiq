@@ -161,7 +161,7 @@ async def test_login():
     """Quick test login endpoint for development - creates/returns a test user token"""
     test_email = "test@networkiq.ai"
     test_user_id = "test_user_" + hashlib.md5(test_email.encode()).hexdigest()[:8]
-    
+
     # Create or get test user
     if test_user_id not in users_db:
         users_db[test_user_id] = {
@@ -171,14 +171,34 @@ async def test_login():
             "tier": "pro",  # Pro tier for testing all features
             "created_at": datetime.utcnow().isoformat(),
             "search_elements": [
-                {"value": "air force academy", "weight": 40, "display": "Air Force Academy", "category": "education"},
-                {"value": "usafa", "weight": 40, "display": "USAFA", "category": "education"},
-                {"value": "anthropic", "weight": 25, "display": "Anthropic", "category": "company"},
-                {"value": "machine learning", "weight": 15, "display": "Machine Learning", "category": "skill"}
-            ]
+                {
+                    "value": "air force academy",
+                    "weight": 40,
+                    "display": "Air Force Academy",
+                    "category": "education",
+                },
+                {
+                    "value": "usafa",
+                    "weight": 40,
+                    "display": "USAFA",
+                    "category": "education",
+                },
+                {
+                    "value": "anthropic",
+                    "weight": 25,
+                    "display": "Anthropic",
+                    "category": "company",
+                },
+                {
+                    "value": "machine learning",
+                    "weight": 15,
+                    "display": "Machine Learning",
+                    "category": "skill",
+                },
+            ],
         }
         save_db("users", users_db)
-    
+
     # Create JWT token
     token_data = {
         "sub": test_user_id,
@@ -186,15 +206,11 @@ async def test_login():
         "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
     }
     token = jwt.encode(token_data, JWT_SECRET, algorithm=JWT_ALGORITHM)
-    
+
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": {
-            "email": test_email,
-            "tier": "pro",
-            "name": "Test User"
-        }
+        "user": {"email": test_email, "tier": "pro", "name": "Test User"},
     }
 
 
@@ -243,11 +259,11 @@ async def login(user_data: UserLogin):
     """Login user"""
     # Check user exists (search by email since users_db is now keyed by user_id)
     user = None
-    found_user_id = None
+    user_id = None
     for uid, u in users_db.items():
         if u.get("email") == user_data.email:
             user = u
-            found_user_id = uid
+            user_id = uid
             break
 
     if not user:
@@ -258,7 +274,7 @@ async def login(user_data: UserLogin):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Create access token
-    access_token = create_access_token({"sub": user["id"]})
+    access_token = create_access_token({"sub": user_id})
 
     return {
         "access_token": access_token,
@@ -440,24 +456,24 @@ async def analyze_profile_llm(
     profile: ProfileScore, current_user: dict = Depends(get_current_user)
 ):
     """Analyze a LinkedIn profile using LLM for intelligent matching"""
-    
+
     # Check if Gemini API is configured
     if not GEMINI_API_KEY:
         # Fallback to regular scoring if no API key
         return await score_profile(profile, current_user)
-    
+
     # Check usage limits for free tier
     user_id = current_user["id"]
     today = datetime.utcnow().date().isoformat()
-    
+
     if user_id not in usage_db:
         usage_db[user_id] = {}
-    
+
     if today not in usage_db[user_id]:
         usage_db[user_id][today] = {"scores": 0, "messages": 0}
-    
+
     daily_usage = usage_db[user_id][today]
-    
+
     # Check limits based on tier
     user_tier = users_db.get(user_id, {}).get("tier", "free")
     if user_tier == "free" and daily_usage["scores"] >= 10:
@@ -465,35 +481,33 @@ async def analyze_profile_llm(
             status_code=429,
             detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
         )
-    
+
     # Get user's search elements from their resume
     user = users_db.get(user_id, {})
     search_elements = user.get("search_elements", [])
-    
+
     if not search_elements:
         # No resume uploaded, use default scoring
         return await score_profile(profile, current_user)
-    
+
     try:
         # Initialize the LLM analyzer
         analyzer = ProfileAnalyzer(api_key=GEMINI_API_KEY)
-        
+
         # Analyze the profile
         analysis = analyzer.analyze_profile(
-            profile_data=profile.profile_data,
-            user_search_elements=search_elements
+            profile_data=profile.profile_data, user_search_elements=search_elements
         )
-        
+
         # Generate enhanced message
         message = analyzer.generate_enhanced_message(
-            profile=profile.profile_data,
-            analysis=analysis
+            profile=profile.profile_data, analysis=analysis
         )
-        
+
         # Track usage
         daily_usage["scores"] += 1
         save_db("usage", usage_db)
-        
+
         # Store profile with enhanced analysis
         profile_id = f"profile_{len(profiles_db) + 1}"
         profiles_db[profile_id] = {
@@ -511,7 +525,7 @@ async def analyze_profile_llm(
             "created_at": datetime.utcnow().isoformat(),
         }
         save_db("profiles", profiles_db)
-        
+
         return {
             "profile_id": profile_id,
             "score": analysis["score"],
@@ -522,7 +536,7 @@ async def analyze_profile_llm(
             "recommendation": analysis.get("recommendation", ""),
             "message": message,
         }
-        
+
     except Exception as e:
         print(f"LLM analysis failed, falling back to basic scoring: {e}")
         # Fallback to basic scoring
