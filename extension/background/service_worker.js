@@ -218,6 +218,8 @@ function getTodayUsage(callback) {
 // Open Stripe checkout
 async function openStripeCheckout(priceId) {
   try {
+    console.log('Creating checkout session with priceId:', priceId, 'userId:', userState.userId);
+    
     // Create checkout session via API
     const response = await fetch(`${API_BASE_URL}/payments/create-checkout`, {
       method: 'POST',
@@ -226,24 +228,26 @@ async function openStripeCheckout(priceId) {
         'Authorization': userState.token ? `Bearer ${userState.token}` : ''
       },
       body: JSON.stringify({
-        priceId: priceId,
-        userId: userState.userId
+        price_id: priceId,
+        user_id: userState.userId || userState.email || 'unknown'
       })
     });
     
     if (!response.ok) {
-      throw new Error('Failed to create checkout session');
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Checkout API error:', response.status, errorData);
+      throw new Error(errorData.detail || 'Failed to create checkout session');
     }
     
     const data = await response.json();
     
     // Open Stripe checkout in new tab
-    if (data.checkoutUrl) {
+    if (data.checkout_url) {
       chrome.tabs.create({
-        url: data.checkoutUrl
+        url: data.checkout_url
       });
     } else {
-      console.error('No checkout URL returned');
+      console.error('No checkout URL returned', data);
     }
   } catch (error) {
     console.error('Failed to create checkout session:', error);

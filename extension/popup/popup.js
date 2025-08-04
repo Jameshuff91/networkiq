@@ -1029,26 +1029,18 @@ async function enableTestMode() {
 
 async function createCheckoutSession(token) {
   try {
-    const response = await fetch(`${API_BASE_URL}/payments/create-checkout`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    // Use the service worker to handle checkout
+    chrome.runtime.sendMessage({
+      action: 'open_checkout',
+      priceId: 'price_1234' // This should be your actual Stripe price ID
+    }, (response) => {
+      if (response?.error) {
+        showStatus('Failed to open checkout: ' + response.error, 'error');
       }
     });
-    
-    if (!response.ok) {
-      throw new Error('Failed to create checkout session');
-    }
-    
-    const data = await response.json();
-    
-    // Open Stripe checkout
-    chrome.tabs.create({ url: data.checkout_url });
-    
   } catch (error) {
     console.error('Checkout error:', error);
-    alert('Failed to start checkout process');
+    showStatus('Failed to start checkout. Please try again.', 'error');
   }
 }
 
