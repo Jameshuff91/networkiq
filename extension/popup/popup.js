@@ -159,6 +159,11 @@ function setupEventListeners() {
       chrome.runtime.sendMessage({
         action: 'open_checkout',
         priceId: 'price_1Rs5yHQaJlv206wSslm2yAQT' // Basic tier ($5/month)
+      }, (response) => {
+        if (response?.error) {
+          console.error('Basic checkout error:', response.error);
+          showStatus('Failed to open checkout: ' + response.error, 'error');
+        }
       });
     } else {
       showLoginUI();
@@ -173,6 +178,11 @@ function setupEventListeners() {
       chrome.runtime.sendMessage({
         action: 'open_checkout',
         priceId: 'price_1Rs5yIQaJlv206wSfUp4nf4u' // Advanced tier ($19/month)
+      }, (response) => {
+        if (response?.error) {
+          console.error('Advanced checkout error:', response.error);
+          showStatus('Failed to open checkout: ' + response.error, 'error');
+        }
       });
     } else {
       showLoginUI();
