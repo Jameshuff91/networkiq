@@ -4,16 +4,31 @@ Extracts text and key information from PDF and DOCX resumes
 """
 
 import re
+import os
+import json
 from typing import Dict, List, Optional
 import PyPDF2
 from docx import Document
 import io
+import google.generativeai as genai
 
 
 class ResumeParser:
     """Parse resumes and extract key information for profile matching"""
 
-    def __init__(self):
+    def __init__(self, use_gemini=True):
+        self.use_gemini = use_gemini
+        
+        # Initialize Gemini if API key is available
+        if use_gemini:
+            gemini_api_key = os.getenv("GEMINI_API_KEY")
+            if gemini_api_key:
+                genai.configure(api_key=gemini_api_key)
+                self.model = genai.GenerativeModel('gemini-1.5-flash')
+            else:
+                self.use_gemini = False
+                print("Gemini API key not found, falling back to regex parsing")
+        
         # Common section headers to identify
         self.section_headers = [
             "experience",
@@ -78,8 +93,15 @@ class ResumeParser:
         else:
             text = file_content.decode("utf-8", errors="ignore")
 
-        # Parse the extracted text
-        parsed_data = self._parse_text(text)
+        # Use Gemini for parsing if available, otherwise fall back to regex
+        if self.use_gemini and hasattr(self, 'model'):
+            try:
+                parsed_data = self._parse_with_gemini(text)
+            except Exception as e:
+                print(f"Gemini parsing failed: {e}, falling back to regex")
+                parsed_data = self._parse_text(text)
+        else:
+            parsed_data = self._parse_text(text)
 
         return parsed_data
 
@@ -113,6 +135,89 @@ class ResumeParser:
             print(f"Error parsing DOCX: {e}")
             return ""
 
+    def _parse_with_gemini(self, text: str) -> Dict:
+        \"\"\"Parse resume text using Gemini Flash LLM for better extraction\"\"\"
+        
+        prompt = \"\"\"Analyze this resume and extract the following information in JSON format:
+
+{
+  "email": "email address if found",
+  "phone": "phone number if found",
+  "education": [
+    {
+      "institution": "school/university name",
+      "degree": "degree type (BS, MS, PhD, etc.)",
+      "field": "field of study",
+      "graduation_year": "year if found"
+    }
+  ],
+  "companies": ["list of company names worked at"],
+  "skills": ["list of technical skills, tools, programming languages"],
+  "military_service": {
+    "branch": "branch of service if any",
+    "academy": "military academy if attended",
+    "rank": "rank if mentioned",
+    "veteran": true/false
+  },
+  "certifications": ["list of professional certifications"],
+  "keywords": ["important industry keywords, roles, specializations"],
+  "years_experience": estimated total years of experience (number),
+  "search_elements": [
+    {
+      "category": "education/company/military/skill/certification/keyword",
+      "value": "the actual value to search for",
+      "weight": importance score 1-50,
+      "display": "display text for UI"
+    }
+  ]
+}
+
+Create search_elements that capture the most important matching criteria from this resume. Focus on:
+- Education institutions (weight: 30)
+- Companies worked at (weight: 25) 
+- Military service/academies (weight: 35-40)
+- Key technical skills (weight: 10-15)
+- Important certifications (weight: 15-20)
+- Industry keywords (weight: 5-10)
+
+Resume text:
+\"\"\" + text[:10000]  # Limit to 10k chars for API
+        
+        try:
+            response = self.model.generate_content(prompt)
+            # Parse the JSON response
+            json_str = response.text
+            # Clean up the response if it has markdown code blocks
+            if "```json" in json_str:
+                json_str = json_str.split("```json")[1].split("```")[0]
+            elif "```" in json_str:
+                json_str = json_str.split("```")[1].split("```")[0]
+            
+            parsed_data = json.loads(json_str)
+            
+            # Ensure all required fields exist
+            parsed_data.setdefault("full_text", text[:5000])
+            parsed_data.setdefault("email", None)
+            parsed_data.setdefault("phone", None)
+            parsed_data.setdefault("education", [])
+            parsed_data.setdefault("companies", [])
+            parsed_data.setdefault("skills", [])
+            parsed_data.setdefault("military_service", None)
+            parsed_data.setdefault("years_experience", 0)
+            parsed_data.setdefault("keywords", [])
+            parsed_data.setdefault("certifications", [])
+            parsed_data.setdefault("search_elements", [])
+            
+            # If no search elements were created, build them from extracted data
+            if not parsed_data["search_elements"]:
+                parsed_data["search_elements"] = self._build_search_elements(parsed_data)
+            
+            return parsed_data
+            
+        except Exception as e:
+            print(f"Error in Gemini parsing: {e}")
+            raise
+    
     def _parse_text(self, text: str) -> Dict:
         """Parse resume text and extract structured information"""
         # Clean and normalize text
@@ -576,7 +681,13 @@ class ResumeParser:
         return elements
 
 
-def parse_resume_file(file_content: bytes, filename: str) -> Dict:
-    """Convenience function to parse a resume file"""
-    parser = ResumeParser()
+def parse_resume_file(file_content: bytes, filename: str, use_gemini: bool = True) -> Dict:
+    """Convenience function to parse a resume file
+    
+    Args:
+        file_content: The binary content of the file
+        filename: The name of the file
+        use_gemini: Whether to use Gemini Flash for parsing (default: True)
+    """
+    parser = ResumeParser(use_gemini=use_gemini)
     return parser.parse_resume(file_content, filename)

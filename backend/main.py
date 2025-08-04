@@ -316,9 +316,10 @@ async def upload_resume(
     # Read file content
     content = await file.read()
 
-    # Parse resume
+    # Parse resume (uses Gemini Flash by default if API key is available)
     try:
-        parsed_data = parse_resume_file(content, file.filename)
+        # Will automatically use Gemini if GEMINI_API_KEY is set, otherwise falls back to regex
+        parsed_data = parse_resume_file(content, file.filename, use_gemini=True)
 
         # Store parsed resume data in user profile
         user_email = current_user["email"]

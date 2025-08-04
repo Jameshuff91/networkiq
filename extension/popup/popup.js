@@ -855,6 +855,7 @@ function attachItemListeners(item) {
 function setupBulkOperations() {
   const selectAllCheckbox = document.getElementById('selectAllCheckbox');
   const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+  const clearAllBtn = document.getElementById('clearAllBtn');
   
   if (selectAllCheckbox) {
     selectAllCheckbox.addEventListener('change', (e) => {
@@ -879,6 +880,24 @@ function setupBulkOperations() {
           selectedItems.forEach(item => item.remove());
           updateBulkDeleteVisibility();
           updateSelectAllCheckbox();
+        }
+      }
+    });
+  }
+  
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      const allItems = document.querySelectorAll('.weight-item');
+      if (allItems.length > 0) {
+        if (confirm(`Clear all ${allItems.length} criteria? This cannot be undone.`)) {
+          allItems.forEach(item => item.remove());
+          updateBulkDeleteVisibility();
+          updateSelectAllCheckbox();
+          // Hide bulk actions when no items left
+          const bulkActions = document.getElementById('bulkActions');
+          if (bulkActions) {
+            bulkActions.style.display = 'none';
+          }
         }
       }
     });

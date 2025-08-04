@@ -541,9 +541,13 @@ body {
   user-select: none;
 }
 
-.bulk-delete-btn {
-  background: #FF5252;
-  color: white;
+.bulk-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.bulk-delete-btn,
+.clear-all-btn {
   padding: 6px 12px;
   border: none;
   border-radius: 4px;
@@ -551,6 +555,11 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
+}
+
+.bulk-delete-btn {
+  background: #FF5252;
+  color: white;
   display: none;
 }
 
@@ -560,6 +569,15 @@ body {
 
 .bulk-delete-btn:hover {
   background: #D32F2F;
+}
+
+.clear-all-btn {
+  background: #FF9800;
+  color: white;
+}
+
+.clear-all-btn:hover {
+  background: #F57C00;
 }
 
 .weight-item.selected {
