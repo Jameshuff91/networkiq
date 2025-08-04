@@ -31,6 +31,14 @@ chrome.runtime.onInstalled.addListener((details) => {
       }
     });
   }
+  
+  // Always reload auth on install/update
+  loadAuthToken().then(() => {
+    console.log('Auth loaded on install/update, state:', {
+      isAuthenticated: userState.isAuthenticated,
+      hasToken: !!userState.token
+    });
+  });
 });
 
 // Load auth token on startup - check both sync and local storage
@@ -66,10 +74,21 @@ async function loadAuthToken() {
 }
 
 // Load auth on startup
-loadAuthToken().catch(err => console.error('Failed to load auth token:', err));
+(async () => {
+  try {
+    await loadAuthToken();
+    console.log('Initial auth loaded, state:', {
+      isAuthenticated: userState.isAuthenticated,
+      hasToken: !!userState.token,
+      email: userState.email
+    });
+  } catch (err) {
+    console.error('Failed to load auth token:', err);
+  }
+})();
 
 // Listen for storage changes to update auth
-chrome.storage.onChanged.addListener((changes, namespace) => {
+chrome.storage.onChanged.addListener((changes, _namespace) => {
   if (changes.authToken) {
     if (changes.authToken.newValue) {
       userState.token = changes.authToken.newValue;
@@ -88,6 +107,9 @@ async function handleAPICall(endpoint, data) {
     // Add auth token if available
     if (userState.token) {
       headers['Authorization'] = `Bearer ${userState.token}`;
+      console.log(`API call to ${endpoint} with auth token`);
+    } else {
+      console.log(`API call to ${endpoint} WITHOUT auth token - this will likely fail`);
     }
     
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -286,7 +308,7 @@ function updateExtensionBadge() {
 }
 
 // Handle messages from content scripts and popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   console.log('Message received:', request);
   
   // Create a wrapper to ensure response is sent even on timeout
@@ -320,6 +342,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // Use the new LLM-based analysis endpoint
       (async () => {
         try {
+          // Ensure auth is loaded first
+          if (!userState.token) {
+            console.log('No auth token, attempting to load...');
+            await loadAuthToken();
+          }
+          
+          console.log('analyzeProfile - auth state:', {
+            hasToken: !!userState.token,
+            tokenPrefix: userState.token ? userState.token.substring(0, 20) + '...' : 'none'
+          });
+          
           const result = await handleAPICall('/profiles/analyze', {
             linkedin_url: request.profile.url || '',
             profile_data: request.profile
@@ -420,7 +453,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Listen for tab updates
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url?.includes('linkedin.com')) {
     console.log('LinkedIn tab detected:', tab.url);
     // Content scripts are injected via manifest
