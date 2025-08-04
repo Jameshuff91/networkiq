@@ -27,14 +27,10 @@ load_dotenv()
 # Initialize FastAPI
 app = FastAPI(title="NetworkIQ API", version="1.0.0")
 
-# CORS configuration
+# CORS configuration - Allow all origins for Chrome extensions
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "chrome-extension://*",
-        "http://localhost:3000",
-        "https://networkiq.ai",
-    ],
+    allow_origins=["*"],  # Chrome extensions need this
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -158,6 +154,48 @@ def get_current_user(request: Request):
 @app.get("/")
 async def root():
     return {"message": "NetworkIQ API v1.0.0", "status": "operational"}
+
+
+@app.post("/api/auth/test-login")
+async def test_login():
+    """Quick test login endpoint for development - creates/returns a test user token"""
+    test_email = "test@networkiq.ai"
+    test_user_id = "test_user_" + hashlib.md5(test_email.encode()).hexdigest()[:8]
+    
+    # Create or get test user
+    if test_user_id not in users_db:
+        users_db[test_user_id] = {
+            "id": test_user_id,
+            "email": test_email,
+            "name": "Test User",
+            "tier": "pro",  # Pro tier for testing all features
+            "created_at": datetime.utcnow().isoformat(),
+            "search_elements": [
+                {"value": "air force academy", "weight": 40, "display": "Air Force Academy", "category": "education"},
+                {"value": "usafa", "weight": 40, "display": "USAFA", "category": "education"},
+                {"value": "anthropic", "weight": 25, "display": "Anthropic", "category": "company"},
+                {"value": "machine learning", "weight": 15, "display": "Machine Learning", "category": "skill"}
+            ]
+        }
+        save_db("users", users_db)
+    
+    # Create JWT token
+    token_data = {
+        "sub": test_user_id,
+        "email": test_email,
+        "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
+    }
+    token = jwt.encode(token_data, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "email": test_email,
+            "tier": "pro",
+            "name": "Test User"
+        }
+    }
 
 
 @app.post("/api/auth/signup")

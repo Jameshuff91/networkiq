@@ -33,6 +33,51 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
 });
 
+// Load auth token on startup - check both sync and local storage
+async function loadAuthToken() {
+  // First try sync storage
+  const syncData = await chrome.storage.sync.get(['authToken', 'user']);
+  if (syncData.authToken) {
+    userState.token = syncData.authToken;
+    userState.isAuthenticated = true;
+    if (syncData.user) {
+      userState.email = syncData.user.email;
+      userState.subscription = syncData.user.tier || 'free';
+    }
+    return;
+  }
+  
+  // Fallback to local storage
+  const localData = await chrome.storage.local.get(['authToken', 'user']);
+  if (localData.authToken) {
+    userState.token = localData.authToken;
+    userState.isAuthenticated = true;
+    if (localData.user) {
+      userState.email = localData.user.email;
+      userState.subscription = localData.user.tier || 'free';
+    }
+    
+    // Copy to sync storage for persistence
+    chrome.storage.sync.set({
+      authToken: localData.authToken,
+      user: localData.user
+    });
+  }
+}
+
+// Load auth on startup
+loadAuthToken();
+
+// Listen for storage changes to update auth
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (changes.authToken) {
+    if (changes.authToken.newValue) {
+      userState.token = changes.authToken.newValue;
+      userState.isAuthenticated = true;
+    }
+  }
+});
+
 // API call handler with error handling
 async function handleAPICall(endpoint, data) {
   try {
@@ -255,8 +300,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // Use the new LLM-based analysis endpoint
       handleAPICall('/profiles/analyze', {
         linkedin_url: request.profile.url || '',
-        profile_data: request.profile,
-        user_background: request.searchElements
+        profile_data: request.profile
       })
         .then(sendResponse)
         .catch(error => sendResponse({ error: error.message }));
@@ -327,6 +371,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       chrome.storage.sync.remove(['token', 'userId', 'email']);
       updateExtensionBadge();
       sendResponse({ success: true });
+      break;
+      
+    case 'updateAuth':
+      // Update auth state
+      if (request.token) {
+        userState.token = request.token;
+        userState.isAuthenticated = true;
+      }
+      if (request.user) {
+        userState.email = request.user.email;
+        userState.subscription = request.user.tier || 'free';
+      }
+      sendResponse({ success: true, authenticated: userState.isAuthenticated });
       break;
       
     default:

@@ -49,15 +49,25 @@ class ProfileAnalyzer:
             # Call Gemini Flash
             response = self.model.generate_content(prompt)
             
+            # Clean the response text (remove markdown code blocks if present)
+            response_text = response.text.strip()
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]  # Remove ```json
+            if response_text.startswith('```'):
+                response_text = response_text[3:]  # Remove ```
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]  # Remove trailing ```
+            response_text = response_text.strip()
+            
             # Parse the JSON response
-            result = json.loads(response.text)
+            result = json.loads(response_text)
             
             # Calculate total score
             total_score = sum(m['points'] for m in result['matches'])
             total_score = min(total_score, 100)  # Cap at 100
             
-            # Determine tier
-            tier = 'high' if total_score >= 70 else 'medium' if total_score >= 40 else 'low'
+            # Determine tier (40+ is high, 20-39 is medium, <20 is low)
+            tier = 'high' if total_score >= 40 else 'medium' if total_score >= 20 else 'low'
             
             return {
                 'score': total_score,
@@ -127,10 +137,10 @@ Return ONLY valid JSON in this format:
     }}
   ],
   "hidden_connections": [
-    "connections that aren't obvious from text matching"
+    "Short category labels ONLY like: 'Same university', 'Fellow veteran', 'Similar region', 'Shared company', 'Common skillset', 'Military connection', 'Industry overlap'"
   ],
   "insights": [
-    "strategic insights about this connection"
+    "ONE strategic insight about this connection (max 2 sentences)"
   ],
   "recommendation": "one sentence on why to connect"
 }}
@@ -158,7 +168,7 @@ Be generous with matching - if there's any reasonable connection, include it."""
                 score += element['weight']
         
         score = min(score, 100)
-        tier = 'high' if score >= 70 else 'medium' if score >= 40 else 'low'
+        tier = 'high' if score >= 40 else 'medium' if score >= 20 else 'low'
         
         return {
             'score': score,

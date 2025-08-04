@@ -119,9 +119,8 @@ class NetworkIQUI {
       const settings = await chrome.storage.local.get(['useLLMAnalysis']);
       const useLLM = settings.useLLMAnalysis !== false;
       
-      if (useLLM && !this.testMode) {
+      if (useLLM) {  // Allow LLM even in test mode
         try {
-          console.log('NetworkIQ: Using LLM for intelligent matching...');
           const response = await chrome.runtime.sendMessage({
             action: 'analyzeProfile',
             profile: profile,
@@ -129,20 +128,18 @@ class NetworkIQUI {
           });
           
           if (response && !response.error) {
-            console.log('NetworkIQ: LLM analysis successful:', response);
             // Format LLM response to match local scorer format
             scoreData = {
               score: response.score,
               tier: response.tier,
               matches: response.matches || [],
-              breakdown: response.breakdown || {},
+              breakdown: this.buildBreakdownFromMatches(response.matches || []),
               insights: response.insights || [],
               hiddenConnections: response.hidden_connections || [],
               recommendation: response.recommendation || '',
               message: response.message
             };
           } else {
-            console.log('NetworkIQ: LLM failed, using local scoring:', response?.error);
             scoreData = this.scorer.calculateScore(profile);
           }
         } catch (error) {
@@ -175,7 +172,6 @@ class NetworkIQUI {
         });
       }
       
-      console.log('NetworkIQ: Profile scored successfully', scoreData);
     } catch (error) {
       console.error('NetworkIQ: Error scoring profile:', error);
       // Don't let errors crash the page
@@ -249,8 +245,10 @@ class NetworkIQUI {
             }).join('') || '<div class="niq-insight-chip">No direct matches found</div>'}
           </div>
           ${scoreData.hiddenConnections && scoreData.hiddenConnections.length > 0 ? `
-            <div class="niq-hidden-connections">
-              <small style="color: #6B7280; font-size: 11px;">🔍 Hidden connections: ${scoreData.hiddenConnections.join(', ')}</small>
+            <div class="niq-hidden-connections" style="margin-top: 8px;">
+              ${scoreData.hiddenConnections.map(conn => 
+                `<span style="display: inline-block; background: #F3F4F6; color: #6B7280; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin: 2px;">🔍 ${conn}</span>`
+              ).join(' ')}
             </div>
           ` : ''}
         </div>
@@ -902,10 +900,25 @@ ${this.scorer.generateMessage(profile, scoreData)}
       company: 'Company Match',
       education: 'Education',
       skills: 'Skills & Role',
+      skill: 'Skills & Role',
       location: 'Location',
-      role: 'Role Relevance'
+      role: 'Role Relevance',
+      certification: 'Certifications',
+      keyword: 'Keywords'
     };
     return labels[key] || key;
+  }
+
+  buildBreakdownFromMatches(matches) {
+    const breakdown = {};
+    matches.forEach(match => {
+      const category = match.category || 'other';
+      if (!breakdown[category]) {
+        breakdown[category] = 0;
+      }
+      breakdown[category] += match.points || 0;
+    });
+    return breakdown;
   }
 
   showToast(message, duration = 3000) {

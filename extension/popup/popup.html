@@ -16,6 +16,11 @@
       <div class="user-tier" id="userTier">FREE</div>
     </div>
 
+    <!-- Dev Auth Button (for testing) -->
+    <button id="devAuthBtn" class="action-btn primary" style="width: calc(100% - 32px); margin: 8px 16px; background: #FFC107; color: #333; display: none;">
+      🔐 Quick Test Login
+    </button>
+
     <!-- Stats Section -->
     <div class="stats-section">
       <div class="stat-card">
@@ -73,13 +78,7 @@
           
           <div class="add-criteria-section">
             <input type="text" id="newCriteriaInput" placeholder="e.g., Google, Python, Harvard, Navy SEAL" class="criteria-input">
-            <select id="newCriteriaCategory" class="criteria-select">
-              <option value="company">Company</option>
-              <option value="education">Education</option>
-              <option value="military">Military</option>
-              <option value="skills">Skill</option>
-              <option value="keywords">Keyword</option>
-            </select>
+            <span class="criteria-category-label">Keyword</span>
             <input type="number" id="newCriteriaWeight" placeholder="Points" min="0" max="50" value="20" class="weight-input">
             <button class="action-btn primary" id="addCriteriaBtn">+ Add</button>
           </div>

@@ -4,12 +4,64 @@
 const API_BASE_URL = 'http://localhost:8000/api';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Check auth and show dev button if needed
+  await setupDevAuth();
+  
   // Load and display user data
   await loadUserData();
   
   // Set up event listeners
   setupEventListeners();
 });
+
+async function setupDevAuth() {
+  const authCheck = await chrome.storage.sync.get(['authToken']);
+  const devBtn = document.getElementById('devAuthBtn');
+  
+  if (!authCheck.authToken && devBtn) {
+    devBtn.style.display = 'block';
+    devBtn.addEventListener('click', async () => {
+      devBtn.disabled = true;
+      devBtn.textContent = '⏳ Authenticating...';
+      
+      try {
+        const response = await fetch('http://localhost:8000/api/auth/test-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        
+        if (data.access_token) {
+          // Store the token
+          await chrome.storage.sync.set({
+            authToken: data.access_token,
+            user: data.user
+          });
+          
+          await chrome.storage.local.set({
+            isAuthenticated: true,
+            authToken: data.access_token,
+            user: data.user
+          });
+          
+          // Update service worker
+          chrome.runtime.sendMessage({
+            action: 'updateAuth',
+            token: data.access_token,
+            user: data.user
+          });
+          
+          devBtn.textContent = '✅ Authenticated!';
+          setTimeout(() => window.location.reload(), 1000);
+        }
+      } catch (error) {
+        console.error('Auth failed:', error);
+        devBtn.textContent = '❌ Failed - Is backend running?';
+        devBtn.disabled = false;
+      }
+    });
+  }
+}
 
 async function loadUserData() {
   try {
@@ -638,16 +690,17 @@ function setupWeightsEditorListeners(originalElements) {
   // Add new criteria
   document.getElementById('addCriteriaBtn')?.addEventListener('click', () => {
     const input = document.getElementById('newCriteriaInput');
-    const category = document.getElementById('newCriteriaCategory');
     const weight = document.getElementById('newCriteriaWeight');
     
     if (!input.value.trim()) return;
     
+    // Always use 'keyword' as the category for user-added items
+    const category = 'keyword';
+    
     // Add to the list
     const container = document.getElementById('searchElementsList');
-    const categoryGroup = container.querySelector(`.weight-category-group:has(.weight-category-header:contains("${category.value.toUpperCase()}"))`);
     
-    const newId = `${category.value}-${Date.now()}`;
+    const newId = `${category}-${Date.now()}`;
     const newItem = document.createElement('div');
     newItem.className = 'weight-item';
     newItem.dataset.id = newId;
@@ -656,7 +709,7 @@ function setupWeightsEditorListeners(originalElements) {
       <div class="weight-item-info">
         <input type="text" class="weight-item-label editable-label" 
                value="${input.value}">
-        <span class="weight-item-category">${category.value}</span>
+        <span class="weight-item-category">keyword</span>
       </div>
       <div class="weight-item-controls">
         <input type="range" class="weight-slider" 

@@ -290,6 +290,18 @@ body {
   background: #F0F8FF;
   border-radius: 6px;
   border: 1px dashed #5E5ADB;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.criteria-category-label {
+  padding: 6px 12px;
+  background: #5E5ADB;
+  color: white;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .criteria-input {
@@ -427,6 +439,12 @@ body {
   border-radius: 4px;
   font-size: 13px;
   text-align: center;
+  flex-shrink: 0;
+}
+
+/* Ensure weight input in add criteria section doesn't overflow */
+.add-criteria-section .weight-input {
+  width: 60px;
 }
 
 .weight-input:focus {
