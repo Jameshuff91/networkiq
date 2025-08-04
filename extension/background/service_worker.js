@@ -66,7 +66,7 @@ async function loadAuthToken() {
 }
 
 // Load auth on startup
-loadAuthToken();
+loadAuthToken().catch(err => console.error('Failed to load auth token:', err));
 
 // Listen for storage changes to update auth
 chrome.storage.onChanged.addListener((changes, namespace) => {
@@ -289,21 +289,47 @@ function updateExtensionBadge() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Message received:', request);
   
+  // Create a wrapper to ensure response is sent even on timeout
+  let responseSent = false;
+  const safeResponse = (data) => {
+    if (!responseSent) {
+      responseSent = true;
+      sendResponse(data);
+    }
+  };
+  
+  // Set a timeout to ensure response is always sent
+  const timeout = setTimeout(() => {
+    safeResponse({ error: 'Request timeout', code: 'TIMEOUT' });
+  }, 10000); // 10 second timeout
+  
+  // Original response wrapper that clears timeout
+  const originalSendResponse = (data) => {
+    clearTimeout(timeout);
+    safeResponse(data);
+  };
+  
   switch (request.action) {
     case 'api_call':
       handleAPICall(request.endpoint, request.data)
-        .then(sendResponse)
-        .catch(error => sendResponse({ error: error.message }));
+        .then(originalSendResponse)
+        .catch(error => originalSendResponse({ error: error.message }));
       return true; // Will respond asynchronously
       
     case 'analyzeProfile':
       // Use the new LLM-based analysis endpoint
-      handleAPICall('/profiles/analyze', {
-        linkedin_url: request.profile.url || '',
-        profile_data: request.profile
-      })
-        .then(sendResponse)
-        .catch(error => sendResponse({ error: error.message }));
+      (async () => {
+        try {
+          const result = await handleAPICall('/profiles/analyze', {
+            linkedin_url: request.profile.url || '',
+            profile_data: request.profile
+          });
+          originalSendResponse(result);
+        } catch (error) {
+          console.error('analyzeProfile error:', error);
+          originalSendResponse({ error: error.message || 'Failed to analyze profile' });
+        }
+      })();
       return true; // Will respond asynchronously
       
     case 'generateMessage':
@@ -312,18 +338,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         profile: request.profile,
         score_data: request.scoreData
       })
-        .then(sendResponse)
-        .catch(error => sendResponse({ error: error.message }));
+        .then(originalSendResponse)
+        .catch(error => originalSendResponse({ error: error.message }));
       return true; // Will respond asynchronously
       
     case 'track':
       // Simple console logging for now (analytics endpoint doesn't exist)
       console.log('Event tracked:', request.event, request.data);
-      sendResponse({ success: true });
+      originalSendResponse({ success: true });
       break;
       
     case 'check_auth':
-      sendResponse({ 
+      originalSendResponse({ 
         isAuthenticated: userState.isAuthenticated, 
         subscription: userState.subscription,
         email: userState.email
@@ -332,13 +358,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
     case 'getTodayUsage':
       getTodayUsage((usage) => {
-        sendResponse(usage);
+        originalSendResponse(usage);
       });
       return true; // Will respond asynchronously
       
     case 'open_checkout':
       openStripeCheckout(request.priceId);
-      sendResponse({ success: true });
+      originalSendResponse({ success: true });
       break;
       
     case 'login':
@@ -356,7 +382,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         email: request.email
       });
       updateExtensionBadge();
-      sendResponse({ success: true });
+      originalSendResponse({ success: true });
       break;
       
     case 'logout':
@@ -370,7 +396,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       };
       chrome.storage.sync.remove(['token', 'userId', 'email']);
       updateExtensionBadge();
-      sendResponse({ success: true });
+      originalSendResponse({ success: true });
       break;
       
     case 'updateAuth':
@@ -383,11 +409,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         userState.email = request.user.email;
         userState.subscription = request.user.tier || 'free';
       }
-      sendResponse({ success: true, authenticated: userState.isAuthenticated });
+      originalSendResponse({ success: true, authenticated: userState.isAuthenticated });
       break;
       
     default:
-      sendResponse({ error: 'Unknown action' });
+      originalSendResponse({ error: 'Unknown action' });
   }
   
   return false; // Default to synchronous response
