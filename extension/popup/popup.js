@@ -588,9 +588,15 @@ async function showWeightsEditor(resumeData) {
   editor.style.display = 'block';
   editBtn.textContent = 'Hide Editor';
   
-  // Load current search elements
-  const result = await chrome.storage.local.get(['searchElements']);
+  // Load current search elements and Calendly link
+  const result = await chrome.storage.local.get(['searchElements', 'calendlyLink']);
   const searchElements = result.searchElements || [];
+  
+  // Load saved Calendly link
+  const calendlyInput = document.getElementById('calendlyLink');
+  if (calendlyInput && result.calendlyLink) {
+    calendlyInput.value = result.calendlyLink;
+  }
   
   // Display current elements
   displaySearchElements(searchElements);
@@ -767,6 +773,18 @@ function setupWeightsEditorListeners(originalElements) {
     attachItemListeners(newItem);
   });
   
+  // Save Calendly link
+  document.getElementById('saveCalendlyBtn')?.addEventListener('click', async () => {
+    const calendlyLink = document.getElementById('calendlyLink').value.trim();
+    if (calendlyLink && !calendlyLink.startsWith('http')) {
+      alert('Please enter a valid URL starting with http:// or https://');
+      return;
+    }
+    
+    await chrome.storage.local.set({ calendlyLink: calendlyLink });
+    showStatus(calendlyLink ? 'Meeting link saved!' : 'Meeting link removed', 'success');
+  });
+  
   // Save changes
   document.getElementById('saveWeightsBtn')?.addEventListener('click', async () => {
     const newElements = [];
@@ -786,8 +804,14 @@ function setupWeightsEditorListeners(originalElements) {
       }
     });
     
+    // Also save Calendly link when saving weights
+    const calendlyLink = document.getElementById('calendlyLink')?.value.trim();
+    
     // Save to storage
-    await chrome.storage.local.set({ searchElements: newElements });
+    await chrome.storage.local.set({ 
+      searchElements: newElements,
+      calendlyLink: calendlyLink || ''
+    });
     
     // Notify content scripts
     notifyContentScripts(newElements);

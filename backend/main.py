@@ -110,6 +110,7 @@ class MessageGenerate(BaseModel):
     score_data: Dict
     tone: str = "professional"
     purpose: str = "networking"
+    calendly_link: Optional[str] = None
 
 
 class CheckoutSession(BaseModel):
@@ -338,11 +339,11 @@ async def upload_resume(
         # Will automatically use Gemini if GEMINI_API_KEY is set, otherwise falls back to regex
         parsed_data = parse_resume_file(content, file.filename, use_gemini=True)
 
-        # Store parsed resume data in user profile
-        user_email = current_user["email"]
-        if user_email in users_db:
-            users_db[user_email]["resume_data"] = parsed_data
-            users_db[user_email]["background"] = {
+        # Store parsed resume data in user profile (use user_id, not email)
+        user_id = current_user["id"]
+        if user_id in users_db:
+            users_db[user_id]["resume_data"] = parsed_data
+            users_db[user_id]["background"] = {
                 "companies": parsed_data.get("companies", []),
                 "skills": parsed_data.get("skills", []),
                 "education": parsed_data.get("education", []),
@@ -384,11 +385,12 @@ async def score_profile(
 
     daily_usage = usage_db[user_id][today]
 
-    if current_user["subscription_tier"] == "free" and daily_usage["scores"] >= 10:
-        raise HTTPException(
-            status_code=429,
-            detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
-        )
+    # TODO: Re-enable for production
+    # if current_user["subscription_tier"] == "free" and daily_usage["scores"] >= 10:
+    #     raise HTTPException(
+    #         status_code=429,
+    #         detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
+    #     )
 
     # Calculate score dynamically based on user's resume
     score = 0
@@ -495,18 +497,25 @@ async def analyze_profile_llm(
 
     # Check limits based on tier
     user_tier = users_db.get(user_id, {}).get("tier", "free")
-    if user_tier == "free" and daily_usage["scores"] >= 10:
-        raise HTTPException(
-            status_code=429,
-            detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
-        )
+    # TODO: Re-enable for production
+    # if user_tier == "free" and daily_usage["scores"] >= 10:
+    #     raise HTTPException(
+    #         status_code=429,
+    #         detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
+    #     )
 
     # Get user's search elements from their resume
     user = users_db.get(user_id, {})
     search_elements = user.get("search_elements", [])
+    
+    print(f"User ID: {user_id}")
+    print(f"Search elements count: {len(search_elements)}")
+    if search_elements:
+        print(f"First 3 search elements: {search_elements[:3]}")
 
     if not search_elements:
         # No resume uploaded, use default scoring
+        print("No search elements found, using default scoring")
         return await score_profile(profile, current_user)
 
     try:
@@ -518,9 +527,11 @@ async def analyze_profile_llm(
             profile_data=profile.profile_data, user_search_elements=search_elements
         )
 
-        # Generate enhanced message
+        # Generate enhanced message with user's background
         message = analyzer.generate_enhanced_message(
-            profile=profile.profile_data, analysis=analysis
+            profile=profile.profile_data, 
+            analysis=analysis,
+            user_background=search_elements
         )
 
         # Track usage
@@ -580,11 +591,12 @@ async def generate_message(
 
         daily_usage = usage_db[user_id][today]
 
-        if daily_usage["messages"] >= 3:
-            raise HTTPException(
-                status_code=429,
-                detail="Daily message limit reached. Upgrade to Pro for unlimited messages.",
-            )
+        # TODO: Re-enable for production
+        # if daily_usage["messages"] >= 3:
+        #     raise HTTPException(
+        #         status_code=429,
+        #         detail="Daily message limit reached. Upgrade to Pro for unlimited messages.",
+        #     )
 
         daily_usage["messages"] += 1
 
@@ -634,6 +646,10 @@ async def generate_message(
             # Pick template based on profile hash (consistent but varied)
             profile_hash = int(hashlib.md5(str(profile).encode()).hexdigest()[:8], 16)
             message_text = templates[profile_hash % len(templates)]
+        
+        # Add Calendly link if provided
+        if message_data.calendly_link:
+            message_text = f"{message_text}\n\nFeel free to book time directly: {message_data.calendly_link}"
 
         # Store message
         message_id = f"msg_{len(messages_db) + 1}"

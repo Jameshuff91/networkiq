@@ -40,23 +40,34 @@ class NetworkIQUI {
   async loadUserSettings() {
     return new Promise((resolve) => {
       // Get user data from storage
-      chrome.storage.local.get(['user', 'resumeData', 'searchElements'], (localData) => {
+      chrome.storage.local.get(['user', 'resumeData', 'searchElements', 'authToken'], (localData) => {
+        console.log('NetworkIQ: Storage data loaded:', {
+          hasUser: !!localData.user,
+          hasResumeData: !!localData.resumeData,
+          hasSearchElements: !!localData.searchElements,
+          searchElementsCount: localData.searchElements?.length || 0,
+          hasAuthToken: !!localData.authToken
+        });
+        
         // Get all relevant data
         chrome.storage.sync.get(['userTier', 'dailyUsage'], (syncData) => {
           this.userTier = syncData.userTier || 'free';
           this.dailyUsage = syncData.dailyUsage || 0;
           
           // Load search elements from resume data
-          if (localData.searchElements) {
+          if (localData.searchElements && localData.searchElements.length > 0) {
             this.scorer.searchElements = localData.searchElements;
             console.log('NetworkIQ: Loaded search elements:', this.scorer.searchElements.length, 'items');
-          } else if (localData.resumeData?.search_elements) {
+            console.log('NetworkIQ: Search elements:', JSON.stringify(this.scorer.searchElements));
+          } else if (localData.resumeData?.search_elements && localData.resumeData.search_elements.length > 0) {
             this.scorer.searchElements = localData.resumeData.search_elements;
             console.log('NetworkIQ: Loaded search elements from resume:', this.scorer.searchElements.length, 'items');
+            console.log('NetworkIQ: First few elements:', this.scorer.searchElements.slice(0, 3));
           } else {
             // Use default if no resume uploaded
             this.scorer.searchElements = this.scorer.getDefaultSearchElements();
-            console.log('NetworkIQ: Using default search elements');
+            console.log('NetworkIQ: Using default search elements - NO RESUME UPLOADED');
+            console.log('NetworkIQ: Please upload your resume in the extension popup');
           }
           
           resolve();
@@ -86,8 +97,11 @@ class NetworkIQUI {
     console.log('NetworkIQ: injectProfileScore started');
     try {
       // Check daily limit for free tier
+      // TODO: Re-enable for production
+      /*
       if (this.userTier === 'free' && this.dailyUsage >= 10) {
-        console.log('NetworkIQ: Daily limit reached for free tier');
+        console.log('NetworkIQ: Daily limit reached for free tier (usage:', this.dailyUsage, ')');
+        console.log('NetworkIQ: User tier:', this.userTier);
         // Check if we've already shown the upgrade prompt today
         const today = new Date().toDateString();
         chrome.storage.local.get(['lastUpgradePromptDate'], (result) => {
@@ -98,6 +112,9 @@ class NetworkIQUI {
         });
         return;
       }
+      */
+      
+      console.log('NetworkIQ: Daily usage:', this.dailyUsage, '/ 10 (limits disabled for dev)');
 
       // Wait a bit for the page to fully load
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -127,6 +144,7 @@ class NetworkIQUI {
             console.log('NetworkIQ: Extension context invalid, using local scoring');
             scoreData = this.scorer.calculateScore(profile);
           } else {
+            console.log('NetworkIQ: Sending to LLM with search elements:', this.scorer.searchElements);
             const response = await chrome.runtime.sendMessage({
               action: 'analyzeProfile',
               profile: profile,
@@ -167,7 +185,7 @@ class NetworkIQUI {
       // Create and inject UI
       console.log('NetworkIQ: Creating UI elements...');
       this.createScoreBadge(scoreData);
-      this.createMessageBox(profile, scoreData);
+      await this.createMessageBox(profile, scoreData);
       this.createFloatingWidget(scoreData);
 
       // Track usage for free tier
@@ -214,13 +232,19 @@ class NetworkIQUI {
     }
   }
 
-  createMessageBox(profile, scoreData) {
+  async createMessageBox(profile, scoreData) {
     // Remove existing sidebar
     const existing = document.querySelector('.networkiq-sidebar');
     if (existing) existing.remove();
-
-    // Use LLM message if available, otherwise generate locally
-    const message = scoreData.message || this.scorer.generateMessage(profile, scoreData);
+    
+    // Get saved Calendly link
+    const storage = await chrome.storage.local.get(['calendlyLink']);
+    let message = scoreData.message || this.scorer.generateMessage(profile, scoreData);
+    
+    // Add Calendly link if available and not already included
+    if (storage.calendlyLink && !message.includes(storage.calendlyLink)) {
+      message = `${message}\n\nFeel free to book time: ${storage.calendlyLink}`;
+    }
 
     // Create sidebar container
     const sidebar = document.createElement('div');
@@ -429,10 +453,14 @@ class NetworkIQUI {
 
   async regenerateMessage() {
     try {
+      // Get saved Calendly link
+      const storage = await chrome.storage.local.get(['calendlyLink']);
+      
       const response = await chrome.runtime.sendMessage({
         action: 'generateMessage',
         profile: this.currentProfile.profile,
-        scoreData: this.currentProfile.scoreData
+        scoreData: this.currentProfile.scoreData,
+        calendlyLink: storage.calendlyLink || ''
       });
 
       if (response.success) {

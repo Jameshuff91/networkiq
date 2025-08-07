@@ -192,14 +192,40 @@ Be generous with matching - if there's any reasonable connection, include it."""
             "recommendation": "",
         }
 
-    def generate_enhanced_message(self, profile: Dict, analysis: Dict) -> str:
+    def generate_enhanced_message(self, profile: Dict, analysis: Dict, user_background: List[Dict] = None) -> str:
         """Generate a highly personalized message based on LLM analysis"""
+        
+        print(f"generate_enhanced_message called with user_background: {user_background is not None}")
+        if user_background:
+            print(f"User background items: {len(user_background)}")
+            print(f"First 3 items: {user_background[:3]}")
+        
+        # Extract user's actual background from search elements
+        user_info = ""
+        if user_background:
+            companies = [elem['display'] for elem in user_background if elem.get('category') == 'company']
+            education = [elem['display'] for elem in user_background if elem.get('category') == 'education']
+            skills = [elem['display'] for elem in user_background if elem.get('category') == 'skill']
+            
+            print(f"Found companies: {companies}")
+            print(f"Found education: {education}")
+            print(f"Found skills: {skills}")
+            
+            if companies:
+                user_info += f"My companies: {', '.join(companies[:3])}\n"
+            if education:
+                user_info += f"My education: {', '.join(education[:2])}\n"
+            if skills:
+                user_info += f"My expertise: {', '.join(skills[:3])}\n"
 
         prompt = f"""Generate a personalized LinkedIn connection request message.
 
-PROFILE:
+THEIR PROFILE:
 Name: {profile.get('name', 'there')}
 Headline: {profile.get('headline', '')}
+
+MY BACKGROUND:
+{user_info if user_info else "Professional with diverse experience"}
 
 CONNECTIONS FOUND:
 {json.dumps(analysis.get('matches', []), indent=2)}
@@ -208,25 +234,35 @@ INSIGHTS:
 {json.dumps(analysis.get('insights', []), indent=2)}
 
 Create a brief, genuine connection request that:
-1. Mentions the strongest/most unique connection
-2. Shows authentic interest
-3. Suggests mutual value
-4. Keeps it under 300 characters
-5. Doesn't sound generic or salesy
+1. Mentions MY specific company/school/experience (not placeholders like [your field])
+2. References the strongest connection point between us
+3. Shows authentic interest in THEIR work
+4. Suggests mutual value
+5. Keeps it under 300 characters
+6. Uses specific details, NO PLACEHOLDERS or brackets
 
 Return only the message text, no quotes or explanation."""
 
         try:
             response = self.model.generate_content(prompt)
             return response.text.strip()
-        except Exception:
-            # Fallback message
+        except Exception as e:
+            print(f"Message generation error: {e}")
+            # Fallback message with actual user background
             name = (
                 profile.get("name", "").split()[0] if profile.get("name") else "there"
             )
+            
+            # Get user's first company for fallback
+            my_company = "my work"
+            if user_background:
+                companies = [elem['display'] for elem in user_background if elem.get('category') == 'company']
+                if companies:
+                    my_company = f"my experience at {companies[0]}"
+            
             if analysis["matches"]:
                 connection = analysis["matches"][0].get(
-                    "matches_element", "your background"
+                    "matches_element", "similar interests"
                 )
-                return f"Hi {name}! I noticed we share {connection}. Would love to connect and exchange insights!"
-            return f"Hi {name}! Your background is impressive. Would love to connect and learn from your experience!"
+                return f"Hi {name}! I noticed we share {connection}. Given {my_company}, I'd love to connect and exchange insights!"
+            return f"Hi {name}! Your background at {profile.get('company', 'your company')} is impressive. With {my_company}, I'd value connecting!"
