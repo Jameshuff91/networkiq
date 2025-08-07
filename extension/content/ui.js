@@ -39,43 +39,28 @@ class NetworkIQUI {
 
   async loadUserSettings() {
     return new Promise((resolve) => {
-      // Check both local (for test mode) and sync storage
-      chrome.storage.local.get(['testMode', 'user', 'resumeData', 'searchElements'], (localData) => {
-        if (localData.testMode) {
-          // Test mode - use mock data
-          this.userTier = 'pro';
-          this.testMode = true;
-          this.scorer.searchElements = [
-            { value: 'air force academy', weight: 40, display: 'Air Force Academy', category: 'education' },
-            { value: 'usafa', weight: 40, display: 'USAFA', category: 'education' },
-            { value: 'anthropic', weight: 25, display: 'Anthropic', category: 'company' },
-            { value: 'machine learning', weight: 15, display: 'Machine Learning', category: 'skill' }
-          ];
-          this.dailyUsage = 0;
-          console.log('NetworkIQ: Running in test mode with search elements:', this.scorer.searchElements);
+      // Get user data from storage
+      chrome.storage.local.get(['user', 'resumeData', 'searchElements'], (localData) => {
+        // Get all relevant data
+        chrome.storage.sync.get(['userTier', 'dailyUsage'], (syncData) => {
+          this.userTier = syncData.userTier || 'free';
+          this.dailyUsage = syncData.dailyUsage || 0;
+          
+          // Load search elements from resume data
+          if (localData.searchElements) {
+            this.scorer.searchElements = localData.searchElements;
+            console.log('NetworkIQ: Loaded search elements:', this.scorer.searchElements.length, 'items');
+          } else if (localData.resumeData?.search_elements) {
+            this.scorer.searchElements = localData.resumeData.search_elements;
+            console.log('NetworkIQ: Loaded search elements from resume:', this.scorer.searchElements.length, 'items');
+          } else {
+            // Use default if no resume uploaded
+            this.scorer.searchElements = this.scorer.getDefaultSearchElements();
+            console.log('NetworkIQ: Using default search elements');
+          }
+          
           resolve();
-        } else {
-          // Normal mode - get all relevant data
-          chrome.storage.sync.get(['userTier', 'dailyUsage'], (syncData) => {
-            this.userTier = syncData.userTier || 'free';
-            this.dailyUsage = syncData.dailyUsage || 0;
-            
-            // Load search elements from resume data
-            if (localData.searchElements) {
-              this.scorer.searchElements = localData.searchElements;
-              console.log('NetworkIQ: Loaded search elements:', this.scorer.searchElements.length, 'items');
-            } else if (localData.resumeData?.search_elements) {
-              this.scorer.searchElements = localData.resumeData.search_elements;
-              console.log('NetworkIQ: Loaded search elements from resume:', this.scorer.searchElements.length, 'items');
-            } else {
-              // Use default if no resume uploaded
-              this.scorer.searchElements = this.scorer.getDefaultSearchElements();
-              console.log('NetworkIQ: Using default search elements');
-            }
-            
-            resolve();
-          });
-        }
+        });
       });
     });
   }
@@ -86,7 +71,9 @@ class NetworkIQUI {
     
     if (LinkedInParser.isProfilePage()) {
       console.log('NetworkIQ: Detected profile page');
+      console.log('NetworkIQ: About to call injectProfileScore...');
       this.injectProfileScore();
+      console.log('NetworkIQ: injectProfileScore called');
     } else if (LinkedInParser.isSearchPage()) {
       console.log('NetworkIQ: Detected search page - starting batch scoring');
       this.injectSearchScores();
@@ -96,9 +83,11 @@ class NetworkIQUI {
   }
 
   async injectProfileScore() {
+    console.log('NetworkIQ: injectProfileScore started');
     try {
-      // Skip daily limit check in test mode
-      if (!this.testMode && this.userTier === 'free' && this.dailyUsage >= 10) {
+      // Check daily limit for free tier
+      if (this.userTier === 'free' && this.dailyUsage >= 10) {
+        console.log('NetworkIQ: Daily limit reached for free tier');
         // Check if we've already shown the upgrade prompt today
         const today = new Date().toDateString();
         chrome.storage.local.get(['lastUpgradePromptDate'], (result) => {
@@ -110,13 +99,18 @@ class NetworkIQUI {
         return;
       }
 
+      // Wait a bit for the page to fully load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Parse profile
       console.log('NetworkIQ: Parsing profile...');
       const profile = this.parser.parse();
       if (!profile) {
         console.log('NetworkIQ: Could not parse profile');
+        console.log('NetworkIQ: Parser returned null/undefined');
         return;
       }
+      console.log('NetworkIQ: Profile parsed successfully:', profile);
 
       // Calculate score - try LLM first, fallback to local
       console.log('NetworkIQ: Calculating score...');
@@ -126,32 +120,43 @@ class NetworkIQUI {
       const settings = await chrome.storage.local.get(['useLLMAnalysis']);
       const useLLM = settings.useLLMAnalysis !== false;
       
-      if (useLLM) {  // Allow LLM even in test mode
+      if (useLLM) {
         try {
-          const response = await chrome.runtime.sendMessage({
-            action: 'analyzeProfile',
-            profile: profile,
-            searchElements: this.scorer.searchElements
-          });
-          
-          if (response && !response.error) {
-            // Format LLM response to match local scorer format
-            scoreData = {
-              score: response.score,
-              tier: response.tier,
-              matches: response.matches || [],
-              breakdown: this.buildBreakdownFromMatches(response.matches || []),
-              insights: response.insights || [],
-              hiddenConnections: response.hidden_connections || [],
-              recommendation: response.recommendation || '',
-              message: response.message
-            };
-          } else {
+          // Check if extension context is still valid
+          if (!chrome.runtime?.id) {
+            console.log('NetworkIQ: Extension context invalid, using local scoring');
             scoreData = this.scorer.calculateScore(profile);
+          } else {
+            const response = await chrome.runtime.sendMessage({
+              action: 'analyzeProfile',
+              profile: profile,
+              searchElements: this.scorer.searchElements
+            });
+            
+            if (response && !response.error) {
+              // Format LLM response to match local scorer format
+              scoreData = {
+                score: response.score,
+                tier: response.tier,
+                matches: response.matches || [],
+                breakdown: this.buildBreakdownFromMatches(response.matches || []),
+                insights: response.insights || [],
+                hiddenConnections: response.hidden_connections || [],
+                recommendation: response.recommendation || '',
+                message: response.message
+              };
+            } else {
+              scoreData = this.scorer.calculateScore(profile);
+            }
           }
         } catch (error) {
-          console.log('NetworkIQ: LLM error, using local scoring:', error);
-          scoreData = this.scorer.calculateScore(profile);
+          if (error.message?.includes('Extension context invalidated')) {
+            console.log('NetworkIQ: Extension reloaded, using local scoring');
+            scoreData = this.scorer.calculateScore(profile);
+          } else {
+            console.log('NetworkIQ: LLM error, using local scoring:', error);
+            scoreData = this.scorer.calculateScore(profile);
+          }
         }
       } else {
         scoreData = this.scorer.calculateScore(profile);
@@ -165,22 +170,21 @@ class NetworkIQUI {
       this.createMessageBox(profile, scoreData);
       this.createFloatingWidget(scoreData);
 
-      // Track usage (skip in test mode)
-      if (!this.testMode && this.userTier === 'free') {
+      // Track usage for free tier
+      if (this.userTier === 'free') {
         this.dailyUsage++;
         chrome.storage.sync.set({ dailyUsage: this.dailyUsage });
       }
 
-      // Send analytics (skip in test mode)
-      if (!this.testMode) {
-        this.trackEvent('profile_scored', {
-          score: scoreData.score,
-          tier: scoreData.tier
-        });
-      }
+      // Send analytics
+      this.trackEvent('profile_scored', {
+        score: scoreData.score,
+        tier: scoreData.tier
+      });
       
     } catch (error) {
       console.error('NetworkIQ: Error scoring profile:', error);
+      console.error('NetworkIQ: Error details:', error.message, error.stack);
       // Don't let errors crash the page
     }
   }
@@ -983,15 +987,23 @@ ${this.scorer.generateMessage(profile, scoreData)}
   }
 
   trackEvent(eventName, properties = {}) {
-    chrome.runtime.sendMessage({
-      action: 'track',
-      event: eventName,
-      properties: {
-        ...properties,
-        url: window.location.href,
-        timestamp: new Date().toISOString()
+    // Check if extension context is still valid before sending message
+    if (chrome.runtime?.id) {
+      try {
+        chrome.runtime.sendMessage({
+          action: 'track',
+          event: eventName,
+          properties: {
+            ...properties,
+            url: window.location.href,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        // Silently fail if extension was reloaded
+        console.log('NetworkIQ: Could not track event (extension reloaded)');
       }
-    });
+    }
   }
 }
 

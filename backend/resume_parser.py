@@ -136,9 +136,9 @@ class ResumeParser:
             return ""
 
     def _parse_with_gemini(self, text: str) -> Dict:
-        \"\"\"Parse resume text using Gemini Flash LLM for better extraction\"\"\"
+        """Parse resume text using Gemini Flash LLM for better extraction"""
         
-        prompt = \"\"\"Analyze this resume and extract the following information in JSON format:
+        prompt = """Analyze this resume and extract the following information in JSON format:
 
 {
   "email": "email address if found",
@@ -161,10 +161,11 @@ class ResumeParser:
   },
   "certifications": ["list of professional certifications"],
   "keywords": ["important industry keywords, roles, specializations"],
+  "locations": ["cities/states lived or worked in"],
   "years_experience": estimated total years of experience (number),
   "search_elements": [
     {
-      "category": "education/company/military/skill/certification/keyword",
+      "category": "education/company/military/location/skill/achievement/keyword",
       "value": "the actual value to search for",
       "weight": importance score 1-50,
       "display": "display text for UI"
@@ -172,16 +173,18 @@ class ResumeParser:
   ]
 }
 
-Create search_elements that capture the most important matching criteria from this resume. Focus on:
-- Education institutions (weight: 30)
-- Companies worked at (weight: 25) 
-- Military service/academies (weight: 35-40)
-- Key technical skills (weight: 10-15)
-- Important certifications (weight: 15-20)
-- Industry keywords (weight: 5-10)
+Create search_elements for the MOST IMPORTANT networking connections. Prioritize:
+1. Universities/Schools (weight: 35-40) - Alumni connections are strongest
+2. Companies worked at (weight: 30-35) - Former colleagues matter
+3. Military academies/service (weight: 40-45) - Very strong bonds
+4. Hometowns/Cities lived in (weight: 25-30) - Geographic connections
+5. Only 2-3 HIGH-LEVEL skills/interests (weight: 15-20) - e.g., "AI", "Machine Learning", not specific tools
+6. Major life experiences (weight: 20-25) - e.g., "Founder", "CEO", significant achievements
+
+IMPORTANT: Limit to 10-15 total search elements. Focus on BIG connections that create instant rapport, not minor technical details. Avoid specific programming languages or tools unless they define someone's career (e.g., "Python expert" not just "Python")
 
 Resume text:
-\"\"\" + text[:10000]  # Limit to 10k chars for API
+""" + text[:10000]  # Limit to 10k chars for API
         
         try:
             response = self.model.generate_content(prompt)

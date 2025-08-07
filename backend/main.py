@@ -150,6 +150,23 @@ def get_current_user(request: Request):
     return users_db[user_id]
 
 
+def get_current_user_optional(request: Request):
+    """Optional authentication - returns None if not authenticated"""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        return None
+
+    payload = verify_token(token)
+    if not payload:
+        return None
+
+    user_id = payload.get("sub")
+    if user_id not in users_db:
+        return None
+
+    return users_db[user_id]
+
+
 # Routes
 @app.get("/")
 async def root():
@@ -342,7 +359,8 @@ async def upload_resume(
                 "skills": len(parsed_data.get("skills", [])),
                 "education": parsed_data.get("education", []),
                 "military": bool(parsed_data.get("military_service")),
-                "search_elements": len(parsed_data.get("search_elements", [])),
+                "locations": parsed_data.get("locations", []),
+                "search_elements": parsed_data.get("search_elements", []),  # Return full array
             },
         }
     except Exception as e:
@@ -643,7 +661,7 @@ async def generate_message(
 
 @app.post("/api/payments/create-checkout")
 async def create_checkout(
-    session_data: CheckoutSession, current_user: dict = Depends(get_current_user)
+    session_data: CheckoutSession, current_user: dict = Depends(get_current_user_optional)
 ):
     """Create Stripe checkout session"""
     if not STRIPE_SECRET_KEY:
@@ -652,21 +670,27 @@ async def create_checkout(
         )
 
     try:
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[
+        # Build checkout session params
+        checkout_params = {
+            "payment_method_types": ["card"],
+            "line_items": [
                 {
                     "price": session_data.price_id or STRIPE_PRICE_ID,
                     "quantity": 1,
                 }
             ],
-            mode="subscription",
-            success_url="https://networkiq.ai/success?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="https://networkiq.ai/pricing",
-            client_reference_id=current_user["id"],
-            customer_email=current_user["email"],
-            metadata={"user_id": current_user["id"]},
-        )
+            "mode": "subscription",
+            "success_url": "https://networkiq.ai/success?session_id={CHECKOUT_SESSION_ID}",
+            "cancel_url": "https://networkiq.ai/pricing",
+        }
+        
+        # Add user-specific params if authenticated
+        if current_user:
+            checkout_params["client_reference_id"] = current_user["id"]
+            checkout_params["customer_email"] = current_user["email"]
+            checkout_params["metadata"] = {"user_id": current_user["id"]}
+        
+        checkout_session = stripe.checkout.Session.create(**checkout_params)
 
         return {"checkout_url": checkout_session.url, "session_id": checkout_session.id}
 

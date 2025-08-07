@@ -380,8 +380,42 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       return true; // Will respond asynchronously
       
     case 'track':
-      // Simple console logging for now (analytics endpoint doesn't exist)
-      console.log('Event tracked:', request.event, request.data);
+      // Track events locally until backend endpoint exists
+      console.log('Event tracked:', request.event, request.properties);
+      
+      // Update local stats based on event type
+      chrome.storage.local.get(['stats'], (result) => {
+        const today = new Date().toDateString();
+        const stats = result.stats || { 
+          todayScores: 0, 
+          totalConnections: 0, 
+          acceptanceRate: '0%', 
+          lastResetDate: today,
+          connectionsSent: 0,
+          connectionsAccepted: 0
+        };
+        
+        // Reset daily counter if it's a new day
+        if (stats.lastResetDate !== today) {
+          stats.todayScores = 0;
+          stats.lastResetDate = today;
+        }
+        
+        // Update stats based on event type
+        if (request.event === 'profile_scored') {
+          stats.todayScores = (stats.todayScores || 0) + 1;
+        } else if (request.event === 'connection_initiated') {
+          stats.totalConnections = (stats.totalConnections || 0) + 1;
+          stats.connectionsSent = (stats.connectionsSent || 0) + 1;
+          // Recalculate acceptance rate (this would need actual tracking of accepts)
+          const accepted = stats.connectionsAccepted || 0;
+          const sent = stats.connectionsSent || 1;
+          stats.acceptanceRate = Math.round((accepted / sent) * 100) + '%';
+        }
+        
+        chrome.storage.local.set({ stats });
+      });
+      
       originalSendResponse({ success: true });
       break;
       
