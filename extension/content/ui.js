@@ -1177,16 +1177,26 @@ class NetworkIQUI {
         <div class="niq-quickview-body">
           ${scoreData.matches && scoreData.matches.length > 0 ? `
             <div class="niq-quickview-section">
-              <h4>🔗 Connections</h4>
+              <h4>🎯 Commonalities</h4>
               <div class="niq-quickview-matches">
                 ${scoreData.matches
-                  .filter(m => m && (m.text || m.matches_element || m.display || m.value))
+                  .filter(m => {
+                    // Only include matches that have valid text and aren't undefined
+                    const hasText = m && (m.text || m.matches_element || m.display || m.value);
+                    const text = m?.text || m?.matches_element || m?.display || m?.value || '';
+                    return hasText && text !== 'undefined' && text !== '';
+                  })
                   .map(m => {
                     // Extract the display text from various possible formats
-                    const text = m.text || m.matches_element || m.display || m.value || 'Unknown';
+                    const text = m.text || m.matches_element || m.display || m.value || '';
                     const points = m.weight || m.points || 0;
-                    return `<span class="niq-match-chip">${text} (+${points})</span>`;
+                    // Only show if we have valid text
+                    if (text && text !== 'undefined') {
+                      return `<span class="niq-match-chip">${text} (+${points})</span>`;
+                    }
+                    return '';
                   })
+                  .filter(html => html !== '')
                   .join('')}
               </div>
             </div>
@@ -1643,9 +1653,20 @@ ${this.scorer.generateMessage(profile, scoreData)}
   }
 }
 
-// Listen for messages from popup (cache clearing)
+// Listen for messages from popup (cache clearing and auth changes)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'clearProfileCache') {
+  if (request.action === 'authStateChanged') {
+    // User just logged in, show the sidebar
+    if (request.isAuthenticated) {
+      console.log('NetworkIQ: Auth state changed, initializing UI');
+      chrome.storage.local.get(['isAuthenticated'], (result) => {
+        if (result.isAuthenticated) {
+          initializeUI();
+        }
+      });
+    }
+    sendResponse({ success: true });
+  } else if (request.action === 'clearProfileCache') {
     console.log('NetworkIQ: Clearing profile cache due to:', request.reason);
     try {
       if (window.profileAnalysisCache) {

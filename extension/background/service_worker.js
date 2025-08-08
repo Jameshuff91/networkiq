@@ -468,29 +468,33 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
         const today = new Date().toDateString();
         const stats = result.stats || { 
           todayScores: 0, 
-          totalConnections: 0, 
-          acceptanceRate: '0%', 
-          lastResetDate: today,
-          connectionsSent: 0,
-          connectionsAccepted: 0
+          highMatches: 0, 
+          avgScore: 0,
+          totalScore: 0,
+          lastResetDate: today
         };
         
         // Reset daily counter if it's a new day
         if (stats.lastResetDate !== today) {
           stats.todayScores = 0;
+          stats.totalScore = 0;
+          stats.avgScore = 0;
           stats.lastResetDate = today;
         }
         
         // Update stats based on event type
         if (request.event === 'profile_scored') {
           stats.todayScores = (stats.todayScores || 0) + 1;
-        } else if (request.event === 'connection_initiated') {
-          stats.totalConnections = (stats.totalConnections || 0) + 1;
-          stats.connectionsSent = (stats.connectionsSent || 0) + 1;
-          // Recalculate acceptance rate (this would need actual tracking of accepts)
-          const accepted = stats.connectionsAccepted || 0;
-          const sent = stats.connectionsSent || 1;
-          stats.acceptanceRate = Math.round((accepted / sent) * 100) + '%';
+          
+          // Track high matches (80+ score)
+          const score = request.properties?.score || 0;
+          if (score >= 80) {
+            stats.highMatches = (stats.highMatches || 0) + 1;
+          }
+          
+          // Update average score
+          stats.totalScore = (stats.totalScore || 0) + score;
+          stats.avgScore = Math.round(stats.totalScore / stats.todayScores);
         }
         
         chrome.storage.local.set({ stats });

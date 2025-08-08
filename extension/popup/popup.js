@@ -93,8 +93,8 @@ async function loadUserData() {
     // Update stats
     if (result.stats) {
       document.getElementById('todayScores').textContent = result.stats.todayScores || '0';
-      document.getElementById('totalConnections').textContent = result.stats.totalConnections || '0';
-      document.getElementById('acceptanceRate').textContent = result.stats.acceptanceRate || '0%';
+      document.getElementById('highMatches').textContent = result.stats.highMatches || '0';
+      document.getElementById('avgScore').textContent = result.stats.avgScore || '0';
     }
     
     // Show resume status if uploaded
@@ -141,10 +141,6 @@ function setupEventListeners() {
     window.close();
   });
   
-  // View history button
-  document.getElementById('viewHistoryBtn')?.addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('history.html') });
-  });
   
   // Resume upload button
   document.getElementById('uploadResumeBtn')?.addEventListener('click', () => {
@@ -1101,9 +1097,26 @@ async function handleLogin() {
       user: data.user,
       stats: {
         todayScores: 0,
-        totalConnections: 0,
-        acceptanceRate: '0%'
+        highMatches: 0,
+        avgScore: 0
       }
+    });
+    
+    // Notify service worker of auth update
+    chrome.runtime.sendMessage({
+      action: 'updateAuth',
+      token: data.access_token,
+      user: data.user
+    });
+    
+    // Notify all LinkedIn tabs to show the sidebar
+    chrome.tabs.query({url: "*://*.linkedin.com/*"}, (tabs) => {
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'authStateChanged',
+          isAuthenticated: true
+        });
+      });
     });
     
     window.location.reload();
@@ -1145,9 +1158,26 @@ async function handleSignup() {
       user: data.user,
       stats: {
         todayScores: 0,
-        totalConnections: 0,
-        acceptanceRate: '0%'
+        highMatches: 0,
+        avgScore: 0
       }
+    });
+    
+    // Notify service worker of auth update
+    chrome.runtime.sendMessage({
+      action: 'updateAuth',
+      token: data.access_token,
+      user: data.user
+    });
+    
+    // Notify all LinkedIn tabs to show the sidebar
+    chrome.tabs.query({url: "*://*.linkedin.com/*"}, (tabs) => {
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'authStateChanged',
+          isAuthenticated: true
+        });
+      });
     });
     
     window.location.reload();

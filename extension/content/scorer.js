@@ -110,12 +110,15 @@ class NetworkScorer {
           breakdown[element.category] += element.weight;
         }
         
-        // Add to matches for display
-        matches.push({
-          text: element.display || element.value || element.text,
-          weight: element.weight,
-          category: element.category
-        });
+        // Add to matches for display (only if we have valid text)
+        const matchText = element.display || element.value || element.text;
+        if (matchText && matchText !== 'undefined') {
+          matches.push({
+            text: matchText,
+            weight: element.weight,
+            category: element.category
+          });
+        }
       }
     }
 

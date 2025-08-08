@@ -160,9 +160,11 @@ body {
 .action-btn.upgrade {
   background: linear-gradient(135deg, #FFB800, #FFA000);
   color: white;
+  transition: all 0.2s ease;
 }
 
 .action-btn.upgrade:hover {
+  background: linear-gradient(135deg, #FFA000, #FF8800);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(255, 184, 0, 0.3);
 }
@@ -837,9 +839,15 @@ body {
   flex: 1;
   padding: 12px;
   background: white;
-  border: 1px solid #E1E5E9;
+  border: 2px solid #E1E5E9;
   border-radius: 8px;
   text-align: center;
+  transition: all 0.3s ease;
+}
+
+.pricing-tier:hover {
+  border-color: #5E5ADB;
+  box-shadow: 0 2px 8px rgba(94, 90, 219, 0.15);
 }
 
 .pricing-tier.featured {
@@ -876,4 +884,14 @@ body {
 .pricing-tier .feature-list li {
   font-size: 11px;
   padding: 3px 0;
+}
+
+.pricing-tier .action-btn {
+  height: 40px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.pricing-tier:not(.featured) .action-btn {
+  margin-top: 51px;
 }
