@@ -18,17 +18,17 @@ class ResumeParser:
 
     def __init__(self, use_gemini=True):
         self.use_gemini = use_gemini
-        
+
         # Initialize Gemini if API key is available
         if use_gemini:
             gemini_api_key = os.getenv("GEMINI_API_KEY")
             if gemini_api_key:
                 genai.configure(api_key=gemini_api_key)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                self.model = genai.GenerativeModel("gemini-1.5-flash")
             else:
                 self.use_gemini = False
                 print("Gemini API key not found, falling back to regex parsing")
-        
+
         # Common section headers to identify
         self.section_headers = [
             "experience",
@@ -94,7 +94,7 @@ class ResumeParser:
             text = file_content.decode("utf-8", errors="ignore")
 
         # Use Gemini for parsing if available, otherwise fall back to regex
-        if self.use_gemini and hasattr(self, 'model'):
+        if self.use_gemini and hasattr(self, "model"):
             try:
                 parsed_data = self._parse_with_gemini(text)
             except Exception as e:
@@ -137,8 +137,9 @@ class ResumeParser:
 
     def _parse_with_gemini(self, text: str) -> Dict:
         """Parse resume text using Gemini Flash LLM for better extraction"""
-        
-        prompt = """Analyze this resume and extract the following information in JSON format:
+
+        prompt = (
+            """Analyze this resume and extract the following information in JSON format:
 
 {
   "email": "email address if found",
@@ -184,8 +185,10 @@ Create search_elements for the MOST IMPORTANT networking connections. Prioritize
 IMPORTANT: Limit to 10-15 total search elements. Focus on BIG connections that create instant rapport, not minor technical details. Avoid specific programming languages or tools unless they define someone's career (e.g., "Python expert" not just "Python")
 
 Resume text:
-""" + text[:10000]  # Limit to 10k chars for API
-        
+"""
+            + text[:10000]
+        )  # Limit to 10k chars for API
+
         try:
             response = self.model.generate_content(prompt)
             # Parse the JSON response
@@ -195,9 +198,9 @@ Resume text:
                 json_str = json_str.split("```json")[1].split("```")[0]
             elif "```" in json_str:
                 json_str = json_str.split("```")[1].split("```")[0]
-            
+
             parsed_data = json.loads(json_str)
-            
+
             # Ensure all required fields exist
             parsed_data.setdefault("full_text", text[:5000])
             parsed_data.setdefault("email", None)
@@ -210,17 +213,19 @@ Resume text:
             parsed_data.setdefault("keywords", [])
             parsed_data.setdefault("certifications", [])
             parsed_data.setdefault("search_elements", [])
-            
+
             # If no search elements were created, build them from extracted data
             if not parsed_data["search_elements"]:
-                parsed_data["search_elements"] = self._build_search_elements(parsed_data)
-            
+                parsed_data["search_elements"] = self._build_search_elements(
+                    parsed_data
+                )
+
             return parsed_data
-            
+
         except Exception as e:
             print(f"Error in Gemini parsing: {e}")
             raise
-    
+
     def _parse_text(self, text: str) -> Dict:
         """Parse resume text and extract structured information"""
         # Clean and normalize text
@@ -684,9 +689,11 @@ Resume text:
         return elements
 
 
-def parse_resume_file(file_content: bytes, filename: str, use_gemini: bool = True) -> Dict:
+def parse_resume_file(
+    file_content: bytes, filename: str, use_gemini: bool = True
+) -> Dict:
     """Convenience function to parse a resume file
-    
+
     Args:
         file_content: The binary content of the file
         filename: The name of the file

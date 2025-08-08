@@ -34,7 +34,7 @@ class TestAPI:
             "name": "Test User",
         }
         response = client.post("/api/auth/signup", json=user_data)
-        
+
         # If user already exists, that's fine - just check it returns 400
         if response.status_code == 400:
             assert "already registered" in response.json()["detail"]
@@ -100,14 +100,17 @@ class TestAPI:
             "name": "Auth User",
         }
         signup_response = client.post("/api/auth/signup", json=signup_data)
-        
+
         # Get token either from signup or login
         if signup_response.status_code == 400:
             # User exists, login instead
-            login_response = client.post("/api/auth/login", json={
-                "email": signup_data["email"],
-                "password": signup_data["password"]
-            })
+            login_response = client.post(
+                "/api/auth/login",
+                json={
+                    "email": signup_data["email"],
+                    "password": signup_data["password"],
+                },
+            )
             token = login_response.json()["access_token"]
         else:
             token = signup_response.json()["access_token"]
@@ -137,14 +140,17 @@ class TestAPI:
             "name": "Scorer User",
         }
         signup_response = client.post("/api/auth/signup", json=signup_data)
-        
+
         # Get token either from signup or login
         if signup_response.status_code == 400:
             # User exists, login instead
-            login_response = client.post("/api/auth/login", json={
-                "email": signup_data["email"],
-                "password": signup_data["password"]
-            })
+            login_response = client.post(
+                "/api/auth/login",
+                json={
+                    "email": signup_data["email"],
+                    "password": signup_data["password"],
+                },
+            )
             token = login_response.json()["access_token"]
         else:
             token = signup_response.json()["access_token"]
@@ -182,11 +188,11 @@ class TestAPI:
     def test_message_generation_with_auth(self):
         """Test message generation with authentication"""
         import os
-        
+
         # Check if OpenAI API key is configured
         if not os.getenv("OPENAI_API_KEY"):
             pytest.skip("OpenAI API key not configured")
-            
+
         # Create user and get token (handle if user already exists)
         signup_data = {
             "email": "messenger@example.com",
@@ -194,14 +200,17 @@ class TestAPI:
             "name": "Messenger User",
         }
         signup_response = client.post("/api/auth/signup", json=signup_data)
-        
+
         # Get token either from signup or login
         if signup_response.status_code == 400:
             # User exists, login instead
-            login_response = client.post("/api/auth/login", json={
-                "email": signup_data["email"],
-                "password": signup_data["password"]
-            })
+            login_response = client.post(
+                "/api/auth/login",
+                json={
+                    "email": signup_data["email"],
+                    "password": signup_data["password"],
+                },
+            )
             token = login_response.json()["access_token"]
         else:
             token = signup_response.json()["access_token"]
@@ -215,14 +224,14 @@ class TestAPI:
         response = client.post(
             "/api/messages/generate", json=message_data, headers=headers
         )
-        
+
         # The API might fail if OpenAI key is invalid/expired
         if response.status_code == 500:
             # Check if it's an OpenAI API error
             error_detail = response.json().get("detail", "")
             if "OpenAI" in error_detail or "API" in error_detail:
                 pytest.skip(f"OpenAI API error: {error_detail}")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "message" in data
@@ -238,14 +247,17 @@ class TestAPI:
             "name": "Stats User",
         }
         signup_response = client.post("/api/auth/signup", json=signup_data)
-        
+
         # Get token either from signup or login
         if signup_response.status_code == 400:
             # User exists, login instead
-            login_response = client.post("/api/auth/login", json={
-                "email": signup_data["email"],
-                "password": signup_data["password"]
-            })
+            login_response = client.post(
+                "/api/auth/login",
+                json={
+                    "email": signup_data["email"],
+                    "password": signup_data["password"],
+                },
+            )
             token = login_response.json()["access_token"]
         else:
             token = signup_response.json()["access_token"]
@@ -263,7 +275,18 @@ class TestAPI:
     def test_rate_limiting_free_tier(self):
         """Test rate limiting for free tier users"""
         import time
-        
+        import os
+
+        # Temporarily set environment to production to enable rate limiting
+        original_env = os.environ.get("ENVIRONMENT")
+        os.environ["ENVIRONMENT"] = "production"
+
+        # Re-import main to pick up the environment change
+        import importlib
+        import main
+
+        importlib.reload(main)
+
         # Create free user with unique email to avoid rate limit conflicts
         unique_email = f"ratelimit{int(time.time())}@example.com"
         signup_data = {
@@ -272,14 +295,17 @@ class TestAPI:
             "name": "Rate Limit User",
         }
         signup_response = client.post("/api/auth/signup", json=signup_data)
-        
+
         # Get token either from signup or login
         if signup_response.status_code == 400:
             # User exists, login instead
-            login_response = client.post("/api/auth/login", json={
-                "email": signup_data["email"],
-                "password": signup_data["password"]
-            })
+            login_response = client.post(
+                "/api/auth/login",
+                json={
+                    "email": signup_data["email"],
+                    "password": signup_data["password"],
+                },
+            )
             token = login_response.json()["access_token"]
         else:
             token = signup_response.json()["access_token"]
@@ -306,6 +332,13 @@ class TestAPI:
         assert response.status_code == 429
         assert "Daily limit reached" in response.json()["detail"]
 
+        # Restore original environment
+        if original_env is None:
+            os.environ.pop("ENVIRONMENT", None)
+        else:
+            os.environ["ENVIRONMENT"] = original_env
+        importlib.reload(main)
+
     def test_invalid_email_format(self):
         """Test signup with invalid email format"""
         user_data = {
@@ -319,7 +352,7 @@ class TestAPI:
     def test_checkout_requires_stripe_config(self):
         """Test checkout endpoint requires Stripe configuration"""
         import os
-        
+
         # Create user and get token (handle existing user)
         signup_data = {
             "email": "checkout@example.com",
@@ -327,14 +360,17 @@ class TestAPI:
             "name": "Checkout User",
         }
         signup_response = client.post("/api/auth/signup", json=signup_data)
-        
+
         # Get token either from signup or login
         if signup_response.status_code == 400:
             # User exists, login instead
-            login_response = client.post("/api/auth/login", json={
-                "email": signup_data["email"],
-                "password": signup_data["password"]
-            })
+            login_response = client.post(
+                "/api/auth/login",
+                json={
+                    "email": signup_data["email"],
+                    "password": signup_data["password"],
+                },
+            )
             token = login_response.json()["access_token"]
         else:
             token = signup_response.json()["access_token"]
@@ -345,12 +381,16 @@ class TestAPI:
         response = client.post(
             "/api/payments/create-checkout", json=checkout_data, headers=headers
         )
-        
+
         # If Stripe is configured, it should return 200 or specific error
         # If not configured, it should return 503
         if os.getenv("STRIPE_SECRET_KEY"):
             # Stripe is configured, might succeed or fail with specific error
-            assert response.status_code in [200, 400, 404]  # Success or specific Stripe error
+            assert response.status_code in [
+                200,
+                400,
+                404,
+            ]  # Success or specific Stripe error
         else:
             # Stripe not configured
             assert response.status_code == 503  # Service unavailable

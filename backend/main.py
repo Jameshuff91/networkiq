@@ -7,8 +7,8 @@ from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import stripe
 import os
-from datetime import datetime, timedelta
-from typing import Optional, Dict
+from datetime import datetime, timedelta, UTC
+from typing import Optional, Dict, List
 import json
 import pickle
 from pathlib import Path
@@ -23,6 +23,10 @@ from profile_analyzer import ProfileAnalyzer
 
 # Load environment variables
 load_dotenv()
+
+# Environment detection
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+IS_PRODUCTION = ENVIRONMENT.lower() == "production"
 
 # Initialize FastAPI
 app = FastAPI(title="NetworkIQ API", version="1.0.0")
@@ -121,7 +125,7 @@ class CheckoutSession(BaseModel):
 # Authentication helpers
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
+    expire = datetime.now(UTC) + timedelta(hours=JWT_EXPIRATION_HOURS)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -187,7 +191,36 @@ async def test_login():
             "email": test_email,
             "name": "Test User",
             "tier": "pro",  # Pro tier for testing all features
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
+            "background": {
+                "search_elements": [
+                    {
+                        "value": "air force academy",
+                    "weight": 40,
+                    "display": "Air Force Academy",
+                    "category": "education",
+                },
+                {
+                    "value": "usafa",
+                    "weight": 40,
+                    "display": "USAFA",
+                    "category": "education",
+                },
+                {
+                    "value": "anthropic",
+                    "weight": 25,
+                    "display": "Anthropic",
+                    "category": "company",
+                },
+                {
+                    "value": "machine learning",
+                    "weight": 15,
+                    "display": "Machine Learning",
+                    "category": "skill",
+                },
+            ],
+            },
+            # Also add at top level for backwards compatibility
             "search_elements": [
                 {
                     "value": "air force academy",
@@ -221,7 +254,7 @@ async def test_login():
     token_data = {
         "sub": test_user_id,
         "email": test_email,
-        "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
+        "exp": datetime.now(UTC) + timedelta(hours=JWT_EXPIRATION_HOURS),
     }
     token = jwt.encode(token_data, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -252,7 +285,7 @@ async def signup(user_data: UserSignup):
         "password": hashed_password,
         "background": user_data.background or {},
         "subscription_tier": "free",
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     users_db[user_id] = user  # Store by user_id for JWT lookups
     save_db("users", users_db)  # Persist data
@@ -350,6 +383,8 @@ async def upload_resume(
                 "military": parsed_data.get("military_service"),
                 "search_elements": parsed_data.get("search_elements", []),
             }
+            # Also store search_elements at top level for backwards compatibility
+            users_db[user_id]["search_elements"] = parsed_data.get("search_elements", [])
             save_db("users", users_db)
 
         return {
@@ -361,7 +396,9 @@ async def upload_resume(
                 "education": parsed_data.get("education", []),
                 "military": bool(parsed_data.get("military_service")),
                 "locations": parsed_data.get("locations", []),
-                "search_elements": parsed_data.get("search_elements", []),  # Return full array
+                "search_elements": parsed_data.get(
+                    "search_elements", []
+                ),  # Return full array
             },
         }
     except Exception as e:
@@ -375,7 +412,7 @@ async def score_profile(
     """Score a LinkedIn profile"""
     # Check usage limits for free tier
     user_id = current_user["id"]
-    today = datetime.utcnow().date().isoformat()
+    today = datetime.now(UTC).date().isoformat()
 
     if user_id not in usage_db:
         usage_db[user_id] = {}
@@ -385,12 +422,16 @@ async def score_profile(
 
     daily_usage = usage_db[user_id][today]
 
-    # TODO: Re-enable for production
-    # if current_user["subscription_tier"] == "free" and daily_usage["scores"] >= 10:
-    #     raise HTTPException(
-    #         status_code=429,
-    #         detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
-    #     )
+    # Rate limiting in production only
+    if (
+        IS_PRODUCTION
+        and current_user["subscription_tier"] == "free"
+        and daily_usage["scores"] >= 10
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
+        )
 
     # Calculate score dynamically based on user's resume
     score = 0
@@ -400,8 +441,12 @@ async def score_profile(
     profile_text = json.dumps(profile.profile_data).lower()
 
     # Get user's search elements from their resume
-    user_background = current_user.get("background", {})
-    search_elements = user_background.get("search_elements", [])
+    # Check both locations for search_elements (for backwards compatibility)
+    search_elements = current_user.get("search_elements", [])
+    if not search_elements:
+        # Try getting from background object
+        user_background = current_user.get("background", {})
+        search_elements = user_background.get("search_elements", [])
 
     # If no resume uploaded, use some default matching
     if not search_elements:
@@ -455,7 +500,7 @@ async def score_profile(
         "score": score,
         "breakdown": breakdown,
         "connections": connections,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     save_db("profiles", profiles_db)  # Persist profiles
 
@@ -485,7 +530,7 @@ async def analyze_profile_llm(
 
     # Check usage limits for free tier
     user_id = current_user["id"]
-    today = datetime.utcnow().date().isoformat()
+    today = datetime.now(UTC).date().isoformat()
 
     if user_id not in usage_db:
         usage_db[user_id] = {}
@@ -495,19 +540,23 @@ async def analyze_profile_llm(
 
     daily_usage = usage_db[user_id][today]
 
-    # Check limits based on tier
+    # Check limits based on tier (production only)
     user_tier = users_db.get(user_id, {}).get("tier", "free")
-    # TODO: Re-enable for production
-    # if user_tier == "free" and daily_usage["scores"] >= 10:
-    #     raise HTTPException(
-    #         status_code=429,
-    #         detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
-    #     )
+    if IS_PRODUCTION and user_tier == "free" and daily_usage["scores"] >= 10:
+        raise HTTPException(
+            status_code=429,
+            detail="Daily limit reached. Upgrade to Pro for unlimited scoring.",
+        )
 
     # Get user's search elements from their resume
     user = users_db.get(user_id, {})
+    # Check both locations for search_elements (for backwards compatibility)
     search_elements = user.get("search_elements", [])
-    
+    if not search_elements:
+        # Try getting from background object
+        background = user.get("background", {})
+        search_elements = background.get("search_elements", [])
+
     print(f"User ID: {user_id}")
     print(f"Search elements count: {len(search_elements)}")
     if search_elements:
@@ -529,9 +578,9 @@ async def analyze_profile_llm(
 
         # Generate enhanced message with user's background
         message = analyzer.generate_enhanced_message(
-            profile=profile.profile_data, 
+            profile=profile.profile_data,
             analysis=analysis,
-            user_background=search_elements
+            user_background=search_elements,
         )
 
         # Track usage
@@ -552,7 +601,7 @@ async def analyze_profile_llm(
             "hidden_connections": analysis.get("hidden_connections", []),
             "recommendation": analysis.get("recommendation", ""),
             "message": message,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
         save_db("profiles", profiles_db)
 
@@ -573,6 +622,108 @@ async def analyze_profile_llm(
         return await score_profile(profile, current_user)
 
 
+class BatchProfileScore(BaseModel):
+    profiles: List[Dict]  # List of profile data objects
+    user_background: Optional[Dict] = None
+
+
+@app.post("/api/profiles/analyze/batch")
+async def analyze_profiles_batch(
+    batch_request: BatchProfileScore, current_user: dict = Depends(get_current_user)
+):
+    """Analyze multiple LinkedIn profiles using LLM for intelligent matching"""
+    # Check if Gemini API is configured
+    if not GEMINI_API_KEY:
+        return {"error": "LLM analysis not available"}
+    
+    # Get user's search elements from their resume
+    user_id = current_user["id"]
+    user = users_db.get(user_id, {})
+    # Check both locations for search_elements (for backwards compatibility)
+    search_elements = user.get("search_elements", [])
+    if not search_elements:
+        # Try getting from background object
+        background = user.get("background", {})
+        search_elements = background.get("search_elements", [])
+    
+    if not search_elements:
+        return {"error": "No resume data found. Please upload your resume first."}
+    
+    # Check usage limits for free tier - count batch as multiple scores
+    today = datetime.now(UTC).date().isoformat()
+    if user_id not in usage_db:
+        usage_db[user_id] = {}
+    if today not in usage_db[user_id]:
+        usage_db[user_id][today] = {"scores": 0, "messages": 0}
+    daily_usage = usage_db[user_id][today]
+    
+    user_tier = users_db.get(user_id, {}).get("tier", "free")
+    profiles_count = len(batch_request.profiles)
+    
+    if IS_PRODUCTION and user_tier == "free" and daily_usage["scores"] + profiles_count > 10:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Batch analysis would exceed daily limit. Need {profiles_count} scores but only {10 - daily_usage['scores']} remaining.",
+        )
+    
+    try:
+        # Initialize the LLM analyzer
+        analyzer = ProfileAnalyzer(api_key=GEMINI_API_KEY)
+        
+        batch_results = []
+        for profile_data in batch_request.profiles:
+            try:
+                # Analyze each profile
+                analysis = analyzer.analyze_profile(
+                    profile_data=profile_data, user_search_elements=search_elements
+                )
+                
+                # Generate message
+                message = analyzer.generate_enhanced_message(
+                    profile=profile_data,
+                    analysis=analysis,
+                    user_background=search_elements,
+                )
+                
+                batch_results.append({
+                    "url": profile_data.get("url", ""),
+                    "name": profile_data.get("name", ""),
+                    "score": analysis["score"],
+                    "tier": analysis["tier"],
+                    "matches": analysis["matches"],
+                    "insights": analysis.get("insights", []),
+                    "hidden_connections": analysis.get("hidden_connections", []),
+                    "recommendation": analysis.get("recommendation", ""),
+                    "message": message,
+                })
+                
+            except Exception as e:
+                # Individual profile failed, add error result
+                print(f"Failed to analyze profile {profile_data.get('name', 'unknown')}: {e}")
+                batch_results.append({
+                    "url": profile_data.get("url", ""),
+                    "name": profile_data.get("name", ""),
+                    "error": str(e),
+                    "score": 0,
+                    "tier": "low",
+                    "matches": [],
+                })
+        
+        # Track usage
+        daily_usage["scores"] += profiles_count
+        save_db("usage", usage_db)
+        
+        return {
+            "results": batch_results,
+            "processed_count": len(batch_results),
+            "success_count": len([r for r in batch_results if "error" not in r]),
+        }
+        
+    except Exception as e:
+        print(f"Batch LLM analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Batch analysis failed")
+
+
 @app.post("/api/messages/generate")
 async def generate_message(
     message_data: MessageGenerate, current_user: dict = Depends(get_current_user)
@@ -582,7 +733,7 @@ async def generate_message(
     if current_user["subscription_tier"] == "free":
         # Check daily limit
         user_id = current_user["id"]
-        today = datetime.utcnow().date().isoformat()
+        today = datetime.now(UTC).date().isoformat()
 
         if user_id not in usage_db:
             usage_db[user_id] = {}
@@ -591,12 +742,12 @@ async def generate_message(
 
         daily_usage = usage_db[user_id][today]
 
-        # TODO: Re-enable for production
-        # if daily_usage["messages"] >= 3:
-        #     raise HTTPException(
-        #         status_code=429,
-        #         detail="Daily message limit reached. Upgrade to Pro for unlimited messages.",
-        #     )
+        # Rate limiting in production only
+        if IS_PRODUCTION and daily_usage["messages"] >= 3:
+            raise HTTPException(
+                status_code=429,
+                detail="Daily message limit reached. Upgrade to Pro for unlimited messages.",
+            )
 
         daily_usage["messages"] += 1
 
@@ -646,7 +797,7 @@ async def generate_message(
             # Pick template based on profile hash (consistent but varied)
             profile_hash = int(hashlib.md5(str(profile).encode()).hexdigest()[:8], 16)
             message_text = templates[profile_hash % len(templates)]
-        
+
         # Add Calendly link if provided
         if message_data.calendly_link:
             message_text = f"{message_text}\n\nFeel free to book time directly: {message_data.calendly_link}"
@@ -658,7 +809,7 @@ async def generate_message(
             "user_id": current_user["id"],
             "profile_data": profile,
             "message": message_text,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
         save_db("messages", messages_db)  # Persist messages
 
@@ -677,7 +828,8 @@ async def generate_message(
 
 @app.post("/api/payments/create-checkout")
 async def create_checkout(
-    session_data: CheckoutSession, current_user: dict = Depends(get_current_user_optional)
+    session_data: CheckoutSession,
+    current_user: dict = Depends(get_current_user_optional),
 ):
     """Create Stripe checkout session"""
     if not STRIPE_SECRET_KEY:
@@ -699,13 +851,13 @@ async def create_checkout(
             "success_url": "https://networkiq.ai/success?session_id={CHECKOUT_SESSION_ID}",
             "cancel_url": "https://networkiq.ai/pricing",
         }
-        
+
         # Add user-specific params if authenticated
         if current_user:
             checkout_params["client_reference_id"] = current_user["id"]
             checkout_params["customer_email"] = current_user["email"]
             checkout_params["metadata"] = {"user_id": current_user["id"]}
-        
+
         checkout_session = stripe.checkout.Session.create(**checkout_params)
 
         return {"checkout_url": checkout_session.url, "session_id": checkout_session.id}
@@ -768,7 +920,7 @@ async def get_stats(current_user: dict = Depends(get_current_user)):
     user_messages = [m for m in messages_db.values() if m["user_id"] == user_id]
 
     # Get today's usage
-    today = datetime.utcnow().date().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     today_usage = usage_db.get(user_id, {}).get(today, {"scores": 0, "messages": 0})
 
     return {

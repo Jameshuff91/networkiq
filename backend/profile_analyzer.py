@@ -192,25 +192,41 @@ Be generous with matching - if there's any reasonable connection, include it."""
             "recommendation": "",
         }
 
-    def generate_enhanced_message(self, profile: Dict, analysis: Dict, user_background: List[Dict] = None) -> str:
+    def generate_enhanced_message(
+        self, profile: Dict, analysis: Dict, user_background: List[Dict] = None
+    ) -> str:
         """Generate a highly personalized message based on LLM analysis"""
-        
-        print(f"generate_enhanced_message called with user_background: {user_background is not None}")
+
+        print(
+            f"generate_enhanced_message called with user_background: {user_background is not None}"
+        )
         if user_background:
             print(f"User background items: {len(user_background)}")
             print(f"First 3 items: {user_background[:3]}")
-        
+
         # Extract user's actual background from search elements
         user_info = ""
         if user_background:
-            companies = [elem['display'] for elem in user_background if elem.get('category') == 'company']
-            education = [elem['display'] for elem in user_background if elem.get('category') == 'education']
-            skills = [elem['display'] for elem in user_background if elem.get('category') == 'skill']
-            
+            companies = [
+                elem["display"]
+                for elem in user_background
+                if elem.get("category") == "company"
+            ]
+            education = [
+                elem["display"]
+                for elem in user_background
+                if elem.get("category") == "education"
+            ]
+            skills = [
+                elem["display"]
+                for elem in user_background
+                if elem.get("category") == "skill"
+            ]
+
             print(f"Found companies: {companies}")
             print(f"Found education: {education}")
             print(f"Found skills: {skills}")
-            
+
             if companies:
                 user_info += f"My companies: {', '.join(companies[:3])}\n"
             if education:
@@ -223,6 +239,7 @@ Be generous with matching - if there's any reasonable connection, include it."""
 THEIR PROFILE:
 Name: {profile.get('name', 'there')}
 Headline: {profile.get('headline', '')}
+Company: {profile.get('company', '')}
 
 MY BACKGROUND:
 {user_info if user_info else "Professional with diverse experience"}
@@ -240,6 +257,8 @@ Create a brief, genuine connection request that:
 4. Suggests mutual value
 5. Keeps it under 300 characters
 6. Uses specific details, NO PLACEHOLDERS or brackets
+7. IMPORTANT: Do NOT assume we work at the same company unless there's a direct company match in the connections found
+8. We are connecting across companies/organizations, not as colleagues
 
 Return only the message text, no quotes or explanation."""
 
@@ -252,14 +271,18 @@ Return only the message text, no quotes or explanation."""
             name = (
                 profile.get("name", "").split()[0] if profile.get("name") else "there"
             )
-            
+
             # Get user's first company for fallback
             my_company = "my work"
             if user_background:
-                companies = [elem['display'] for elem in user_background if elem.get('category') == 'company']
+                companies = [
+                    elem["display"]
+                    for elem in user_background
+                    if elem.get("category") == "company"
+                ]
                 if companies:
                     my_company = f"my experience at {companies[0]}"
-            
+
             if analysis["matches"]:
                 connection = analysis["matches"][0].get(
                     "matches_element", "similar interests"
