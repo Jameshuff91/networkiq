@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load and display user data
   await loadUserData();
   
+  // Load and display history stats
+  await loadHistoryStats();
+  
   // Set up event listeners
   setupEventListeners();
   
@@ -979,6 +982,55 @@ function updateSelectAllCheckbox() {
     const checkedCheckboxes = document.querySelectorAll('.weight-item-checkbox:checked');
     selectAllCheckbox.checked = allCheckboxes.length > 0 && allCheckboxes.length === checkedCheckboxes.length;
     selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+  }
+}
+
+async function loadHistoryStats() {
+  try {
+    // Check if HistoryService is available
+    if (typeof HistoryService === 'undefined') {
+      // Load the service if not already loaded
+      const script = document.createElement('script');
+      script.src = '../services/historyService.js';
+      document.head.appendChild(script);
+      await new Promise(resolve => script.onload = resolve);
+    }
+    
+    // Initialize history service
+    const historyService = new HistoryService();
+    await historyService.init();
+    
+    // Get stats
+    const stats = await historyService.getStats();
+    
+    // Display today's stats
+    document.getElementById('todayCount').textContent = `${stats.today.totalScored} profiles`;
+    document.getElementById('weekCount').textContent = `${stats.week.total} profiles`;
+    document.getElementById('avgScore').textContent = stats.week.average || 0;
+    
+    // Display recent scores
+    const scoresList = document.getElementById('scoresList');
+    if (stats.recentScores && stats.recentScores.length > 0) {
+      scoresList.innerHTML = stats.recentScores.slice(0, 5).map(score => {
+        const time = new Date(score.timestamp);
+        const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `
+          <div class="score-item ${score.tier}">
+            <span class="score-time">${timeStr}</span>
+            <span class="score-value">${score.score}</span>
+          </div>
+        `;
+      }).join('');
+    } else {
+      scoresList.innerHTML = '<div style="color: #999; font-size: 11px;">No profiles scored yet</div>';
+    }
+    
+    // Clean old data (older than 30 days)
+    await historyService.clearOldData(30);
+    
+  } catch (error) {
+    console.warn('Could not load history stats:', error);
+    // Don't show error to user, just log it
   }
 }
 

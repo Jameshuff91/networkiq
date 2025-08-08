@@ -21,6 +21,7 @@
         "content/parser.js",
         "content/scorer.js",
         "content/cache.js",
+        "services/historyService.js",
         "content/ui.js"
       ],
       "css": ["content/styles.css"],

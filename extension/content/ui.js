@@ -13,10 +13,22 @@ class NetworkIQUI {
     this.currentProfile = null;
     this.userTier = 'free'; // Will be loaded from storage
     this.dailyUsage = 0;
+    this.historyService = null;
     this.init();
   }
 
   async init() {
+    // Initialize history service
+    try {
+      if (typeof HistoryService !== 'undefined') {
+        this.historyService = new HistoryService();
+        await this.historyService.init();
+        console.log('NetworkIQ: History service initialized');
+      }
+    } catch (error) {
+      console.warn('NetworkIQ: Could not initialize history service:', error);
+    }
+    
     // Load user settings and tier
     await this.loadUserSettings();
     
@@ -190,10 +202,12 @@ class NetworkIQUI {
               console.log('NetworkIQ: Extension context invalid, using local scoring');
               scoreData = this.scorer.calculateScore(profile);
             } else {
-              console.log('NetworkIQ: Sending to LLM with search elements:', this.scorer.searchElements);
+              console.log('NetworkIQ: Sending sanitized data to LLM');
+            // Sanitize profile data before sending to LLM
+            const sanitizedProfile = this.sanitizeProfileForLLM(profile);
             const response = await chrome.runtime.sendMessage({
               action: 'analyzeProfile',
-              profile: profile,
+              profile: sanitizedProfile,
               searchElements: this.scorer.searchElements
             });
             
@@ -252,6 +266,22 @@ class NetworkIQUI {
         dailyScoredProfiles: dailyScoredProfiles + 1 
       });
 
+      // Track in history (privacy-compliant)
+      if (this.historyService) {
+        try {
+          await this.historyService.addScore({
+            score: scoreData.score,
+            tier: scoreData.tier,
+            matches: scoreData.matches || scoreData.connections || [],
+            message: scoreData.message,
+            source: 'individual'
+          });
+          console.log('NetworkIQ: Score added to history');
+        } catch (error) {
+          console.warn('NetworkIQ: Could not add to history:', error);
+        }
+      }
+      
       // Send analytics
       this.trackEvent('profile_scored', {
         score: scoreData.score,
@@ -263,6 +293,97 @@ class NetworkIQUI {
       console.error('NetworkIQ: Error details:', error.message, error.stack);
       // Don't let errors crash the page
     }
+  }
+  
+  sanitizeProfileForLLM(profile) {
+    // Extract only keywords and concepts, not full profile data
+    const sanitized = {
+      // Keep URL for caching but not sent to LLM
+      url: profile.url,
+      
+      // Extract keywords instead of full text
+      keywords: this.extractKeywords(profile),
+      
+      // Categories instead of actual names
+      hasEducation: !!(profile.education && profile.education.length > 0),
+      hasExperience: !!(profile.experience && profile.experience.length > 0),
+      hasSkills: !!(profile.skills && profile.skills.length > 0),
+      
+      // Industry/role indicators without PII
+      roleLevel: this.categorizeRole(profile.headline || profile.title),
+      industryType: this.categorizeIndustry(profile.text || ''),
+      
+      // Connection strength indicators
+      connectionDegree: profile.connectionDegree || '',
+      
+      // Simplified location (just country/region)
+      region: this.extractRegion(profile.location || '')
+    };
+    
+    return sanitized;
+  }
+  
+  extractKeywords(profile) {
+    const text = [
+      profile.headline || '',
+      profile.about || '',
+      profile.text || ''
+    ].join(' ').toLowerCase();
+    
+    // Extract only technical/professional keywords
+    const keywords = [];
+    const importantTerms = [
+      'engineer', 'developer', 'manager', 'director', 'analyst',
+      'python', 'java', 'javascript', 'react', 'node', 'aws',
+      'machine learning', 'ai', 'data', 'cloud', 'devops',
+      'startup', 'enterprise', 'saas', 'fintech', 'healthcare'
+    ];
+    
+    importantTerms.forEach(term => {
+      if (text.includes(term)) {
+        keywords.push(term);
+      }
+    });
+    
+    return keywords;
+  }
+  
+  categorizeRole(title) {
+    const lower = (title || '').toLowerCase();
+    if (lower.includes('ceo') || lower.includes('founder') || lower.includes('president')) {
+      return 'executive';
+    } else if (lower.includes('director') || lower.includes('vp') || lower.includes('head of')) {
+      return 'senior';
+    } else if (lower.includes('manager') || lower.includes('lead')) {
+      return 'mid';
+    } else if (lower.includes('junior') || lower.includes('intern')) {
+      return 'entry';
+    }
+    return 'individual';
+  }
+  
+  categorizeIndustry(text) {
+    const lower = text.toLowerCase();
+    if (lower.includes('tech') || lower.includes('software') || lower.includes('saas')) {
+      return 'technology';
+    } else if (lower.includes('finance') || lower.includes('banking') || lower.includes('investment')) {
+      return 'finance';
+    } else if (lower.includes('health') || lower.includes('medical') || lower.includes('pharma')) {
+      return 'healthcare';
+    } else if (lower.includes('consult')) {
+      return 'consulting';
+    }
+    return 'other';
+  }
+  
+  extractRegion(location) {
+    const lower = location.toLowerCase();
+    if (lower.includes('united states') || lower.includes('usa')) return 'US';
+    if (lower.includes('united kingdom') || lower.includes('uk')) return 'UK';
+    if (lower.includes('canada')) return 'Canada';
+    if (lower.includes('india')) return 'India';
+    if (lower.includes('germany')) return 'Germany';
+    return 'Other';
   }
 
   createScoreBadge(scoreData) {
@@ -725,6 +846,21 @@ class NetworkIQUI {
       
       // Add visual badge
       this.addScoreBadgeToCard(profile, scoreResult);
+      
+      // Track in history (privacy-compliant)
+      if (this.historyService) {
+        try {
+          await this.historyService.addScore({
+            score: scoreResult.score,
+            tier: scoreResult.tier,
+            matches: scoreResult.connections || [],
+            message: null,
+            source: 'batch'
+          });
+        } catch (error) {
+          console.warn('NetworkIQ: Could not add batch score to history:', error);
+        }
+      }
       
       profilesScored++;
       
