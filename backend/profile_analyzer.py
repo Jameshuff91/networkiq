@@ -67,8 +67,18 @@ class ProfileAnalyzer:
             # Parse the JSON response
             result = json.loads(response_text)
 
-            # Calculate total score
-            total_score = sum(m["points"] for m in result["matches"])
+            # Filter out low-confidence matches (confidence < 0.3)
+            CONFIDENCE_THRESHOLD = 0.3
+            valid_matches = []
+            for match in result["matches"]:
+                confidence = match.get("confidence", 1.0)  # Default to 1.0 if not specified
+                if confidence >= CONFIDENCE_THRESHOLD:
+                    valid_matches.append(match)
+                else:
+                    print(f"Filtering out low-confidence match ({confidence}): {match.get('matches_element', 'unknown')}")
+
+            # Calculate total score from valid matches only
+            total_score = sum(m["points"] for m in valid_matches)
             total_score = min(total_score, 100)  # Cap at 100
 
             # Determine tier (40+ is high, 20-39 is medium, <20 is low)
@@ -81,7 +91,7 @@ class ProfileAnalyzer:
             return {
                 "score": total_score,
                 "tier": tier,
-                "matches": result["matches"],
+                "matches": valid_matches,  # Return only valid matches
                 "insights": result.get("insights", []),
                 "hidden_connections": result.get("hidden_connections", []),
                 "recommendation": result.get("recommendation", ""),

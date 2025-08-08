@@ -415,15 +415,48 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       
     case 'generateMessage':
       // Use LLM for message generation
-      handleAPICall('/messages/generate', {
-        profile_data: request.profile,
-        score_data: request.scoreData,
-        tone: request.tone || 'professional',
-        purpose: request.purpose || 'networking',
-        calendly_link: request.calendlyLink || null
-      })
-        .then(originalSendResponse)
-        .catch(error => originalSendResponse({ error: error.message }));
+      (async () => {
+        try {
+          // Ensure auth is loaded first
+          if (!userState.token) {
+            console.log('No auth token for message generation, attempting to load...');
+            await loadAuthToken();
+          }
+          
+          // Check if authenticated after loading
+          if (!userState.token) {
+            console.log('Still no auth token after loading - user needs to sign in');
+            originalSendResponse({
+              error: true,
+              message: 'Please sign in to generate messages',
+              code: 'UNAUTHORIZED'
+            });
+            return;
+          }
+          
+          console.log('generateMessage - auth state:', {
+            hasToken: !!userState.token,
+            tokenPrefix: userState.token ? userState.token.substring(0, 20) + '...' : 'none'
+          });
+          
+          const result = await handleAPICall('/messages/generate', {
+            profile_data: request.profile,
+            score_data: request.scoreData,
+            tone: request.tone || 'professional',
+            purpose: request.purpose || 'networking',
+            calendly_link: request.calendlyLink || null
+          });
+          
+          originalSendResponse(result);
+        } catch (error) {
+          console.error('generateMessage error:', error);
+          originalSendResponse({ 
+            error: true, 
+            message: error.message || 'Failed to generate message',
+            code: 'UNKNOWN_ERROR'
+          });
+        }
+      })();
       return true; // Will respond asynchronously
       
     case 'track':

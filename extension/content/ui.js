@@ -361,9 +361,6 @@ class NetworkIQUI {
             <button class="niq-btn niq-btn-secondary" id="niq-regenerate">
               🔄 Regenerate
             </button>
-            <button class="niq-btn niq-btn-connect" id="niq-connect">
-              ➤ Send
-            </button>
           </div>
         </div>
 
@@ -502,25 +499,6 @@ class NetworkIQUI {
       await this.regenerateMessage();
     });
 
-    // Connect now
-    document.getElementById('niq-connect')?.addEventListener('click', () => {
-      const connectBtn = document.querySelector('button[aria-label*="Connect"]');
-      if (connectBtn) {
-        connectBtn.click();
-        setTimeout(() => {
-          // Try to find and fill the message field
-          const messageField = document.querySelector('textarea[name="message"]');
-          if (messageField) {
-            // Get the current message from the textarea (in case it was regenerated or edited)
-            const textarea = document.querySelector('.niq-message-text');
-            const currentMessage = textarea ? textarea.value : message;
-            messageField.value = currentMessage;
-            messageField.dispatchEvent(new Event('input', { bubbles: true }));
-            this.trackEvent('connection_initiated');
-          }
-        }, 1000);
-      }
-    });
   }
 
   async regenerateMessage() {
@@ -565,8 +543,21 @@ class NetworkIQUI {
           this.trackEvent('message_regenerated');
         }
       } else if (response && response.error) {
-        console.error('NetworkIQ: Message generation error:', response.error);
-        this.showToast(response.error || 'Failed to generate message. Please try again.');
+        console.error('NetworkIQ: Message generation error:', response);
+        
+        // Handle different error types with appropriate messages
+        let errorMessage = 'Failed to generate message. Please try again.';
+        if (response.code === 'NETWORK_ERROR') {
+          errorMessage = 'Cannot connect to server. Please check your connection.';
+        } else if (response.code === 'UNAUTHORIZED') {
+          errorMessage = 'Please sign in to generate messages. Open the extension popup to login.';
+        } else if (response.code === 'RATE_LIMIT') {
+          errorMessage = response.message || 'Daily limit reached. Upgrade to Pro for unlimited messages!';
+        } else if (response.message) {
+          errorMessage = response.message;
+        }
+        
+        this.showToast(errorMessage);
       } else {
         console.error('NetworkIQ: Unexpected response format:', response);
         // If we somehow get an object, try to extract any text we can find
@@ -668,36 +659,50 @@ class NetworkIQUI {
     console.log('NetworkIQ: Scoring profile data sample:', profilesData.slice(0, 2));
     console.log('NetworkIQ: Scorer search elements:', this.scorer.searchElements);
     
-    // Check cache first for batch analysis
-    console.log('NetworkIQ: Checking cache for profiles...');
+    // Check cache first for batch analysis - do all checks in parallel
+    console.log('NetworkIQ: Checking cache for profiles in parallel...');
+    const cacheChecks = profiles.map(async (profile, i) => {
+      try {
+        const cachedResult = await window.profileAnalysisCache.get(profile.url, this.scorer.searchElements);
+        return {
+          profile,
+          profileData: profilesData[i],
+          cachedResult,
+          index: i
+        };
+      } catch (error) {
+        console.warn('NetworkIQ: Cache error for profile', profile.name, error);
+        return {
+          profile,
+          profileData: profilesData[i],
+          cachedResult: null,
+          index: i
+        };
+      }
+    });
+    
+    // Wait for all cache checks to complete in parallel
+    const cacheResults = await Promise.all(cacheChecks);
+    
+    // Separate cached from uncached
     const cachedResults = [];
     const uncachedProfiles = [];
     const uncachedProfilesData = [];
     
-    for (let i = 0; i < profiles.length; i++) {
-      const profile = profiles[i];
-      const profileData = profilesData[i];
-      
-      try {
-        const cachedResult = await window.profileAnalysisCache.get(profile.url, this.scorer.searchElements);
-        if (cachedResult) {
-          console.log(`NetworkIQ: Cache hit for ${profile.name}`);
-          cachedResults.push({
-            profile,
-            profileData,
-            result: cachedResult,
-            cached: true
-          });
-        } else {
-          uncachedProfiles.push(profile);
-          uncachedProfilesData.push(profileData);
-        }
-      } catch (error) {
-        console.warn('NetworkIQ: Cache error for profile', profile.name, error);
+    cacheResults.forEach(({ profile, profileData, cachedResult }) => {
+      if (cachedResult) {
+        console.log(`NetworkIQ: Cache hit for ${profile.name}`);
+        cachedResults.push({
+          profile,
+          profileData,
+          result: cachedResult,
+          cached: true
+        });
+      } else {
         uncachedProfiles.push(profile);
         uncachedProfilesData.push(profileData);
       }
-    }
+    });
     
     console.log(`NetworkIQ: Cache stats - ${cachedResults.length} cached, ${uncachedProfiles.length} need analysis`);
     
@@ -759,12 +764,88 @@ class NetworkIQUI {
         for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
           const chunkData = chunks[chunkIndex];
           const chunk = chunkData.profiles;
+          const originalProfiles = chunkData.originalProfiles;
+          
           console.log(`NetworkIQ: Processing chunk ${chunkIndex + 1}/${chunks.length} with ${chunk.length} profiles`);
+          
+          // Double-check cache for each profile in this chunk before sending to LLM
+          const stillUncachedProfiles = [];
+          const stillUncachedOriginalProfiles = [];
+          const newlyCachedResults = [];
+          
+          for (let i = 0; i < chunk.length; i++) {
+            const profile = originalProfiles[i];
+            const profileData = chunk[i];
+            
+            try {
+              const cachedResult = await window.profileAnalysisCache.get(profile.url, this.scorer.searchElements);
+              if (cachedResult) {
+                console.log(`NetworkIQ: Cache hit during chunk processing for ${profile.name}`);
+                newlyCachedResults.push({
+                  profile,
+                  result: cachedResult,
+                  cached: true
+                });
+              } else {
+                stillUncachedProfiles.push(profileData);
+                stillUncachedOriginalProfiles.push(profile);
+              }
+            } catch (error) {
+              console.warn('NetworkIQ: Cache check error during chunk processing:', error);
+              // If cache check fails, proceed with LLM
+              stillUncachedProfiles.push(profileData);
+              stillUncachedOriginalProfiles.push(profile);
+            }
+          }
+          
+          // Process newly cached results immediately
+          newlyCachedResults.forEach(({ profile, result }) => {
+            const scoreData = {
+              score: result.score,
+              tier: result.tier,
+              matches: result.matches || [],
+              breakdown: result.breakdown || this.buildBreakdownFromMatches(result.matches || []),
+              insights: result.insights || [],
+              hiddenConnections: result.hidden_connections || [],
+              recommendation: result.recommendation || '',
+              message: result.message,
+              cached: true
+            };
+            
+            // Store scored profile
+            scoredProfiles.push({
+              ...profile,
+              score: result.score,
+              tier: result.tier,
+              matches: (result.matches || []).map(m => 
+                typeof m === 'string' ? m : (m.text || m.display || m.value || '')
+              )
+            });
+            
+            // Count by tier
+            if (result.tier === 'high') highScoreCount++;
+            else if (result.tier === 'medium') mediumScoreCount++;
+            else lowScoreCount++;
+            
+            // Add visual badge immediately
+            this.addScoreBadgeToCard(profile, scoreData);
+            
+            processedCount++;
+            this.updateProgressBar(progressBar, processedCount, uncachedProfilesData.length);
+          });
+          
+          // Skip LLM call if all profiles in chunk were cached
+          if (stillUncachedProfiles.length === 0) {
+            console.log(`NetworkIQ: Chunk ${chunkIndex + 1} - all profiles now cached, skipping LLM`);
+            continue;
+          }
+          
+          console.log(`NetworkIQ: Chunk ${chunkIndex + 1} - sending ${stillUncachedProfiles.length} profiles to LLM (${newlyCachedResults.length} were cached)`);
           
           try {
             const batchResponse = await chrome.runtime.sendMessage({
               action: 'analyzeBatch',
-              profiles: chunk
+              profiles: stillUncachedProfiles
             });
             
             console.log(`NetworkIQ: Chunk ${chunkIndex + 1} response:`, batchResponse);
@@ -772,7 +853,7 @@ class NetworkIQUI {
             if (batchResponse && !batchResponse.error && batchResponse.results) {
               // Process results as they come in and cache them
               batchResponse.results.forEach(async (result, idx) => {
-                const profile = chunkData.originalProfiles[idx];
+                const profile = stillUncachedOriginalProfiles[idx];
                 
                 const scoreData = !result.error ? {
                     score: result.score,
@@ -815,9 +896,8 @@ class NetworkIQUI {
             } else {
               console.warn(`NetworkIQ: Chunk ${chunkIndex + 1} failed:`, batchResponse?.error);
               // Add empty results and badges for failed chunk profiles
-              for (let i = 0; i < chunk.length; i++) {
-                const profileIdx = chunkData.startIdx + i;
-                const profile = profiles[profileIdx];
+              for (let i = 0; i < stillUncachedProfiles.length; i++) {
+                const profile = stillUncachedOriginalProfiles[i];
                 allResults.push({ error: 'Chunk processing failed', score: 0, tier: 'low' });
                 
                 // Add low score badge for failed profile
@@ -844,9 +924,8 @@ class NetworkIQUI {
           } catch (chunkError) {
             console.error(`NetworkIQ: Chunk ${chunkIndex + 1} error:`, chunkError);
             // Add empty results and badges for failed chunk profiles
-            for (let i = 0; i < chunk.length; i++) {
-              const profileIdx = chunkData.startIdx + i;
-              const profile = profiles[profileIdx];
+            for (let i = 0; i < stillUncachedProfiles.length; i++) {
+              const profile = stillUncachedOriginalProfiles[i];
               allResults.push({ error: chunkError.message, score: 0, tier: 'low' });
               
               // Add low score badge for failed profile
@@ -862,7 +941,7 @@ class NetworkIQUI {
               });
               
               processedCount++;
-              this.updateProgressBar(progressBar, processedCount, profilesData.length);
+              this.updateProgressBar(progressBar, processedCount, uncachedProfilesData.length);
             }
           }
         }
@@ -1336,8 +1415,17 @@ ${this.scorer.generateMessage(profile, scoreData)}
 
   buildBreakdownFromMatches(matches) {
     const breakdown = {};
+    const CONFIDENCE_THRESHOLD = 0.3; // Minimum confidence to count as a real match
+    
     console.log('NetworkIQ: buildBreakdownFromMatches input:', matches);
+    
     matches.forEach(match => {
+      // Skip low-confidence matches (non-hits)
+      if (match.confidence !== undefined && match.confidence < CONFIDENCE_THRESHOLD) {
+        console.log(`NetworkIQ: Skipping low-confidence match (${match.confidence}):`, match.matches_element);
+        return;
+      }
+      
       const category = match.category || 'other';
       if (!breakdown[category]) {
         breakdown[category] = 0;
@@ -1345,6 +1433,7 @@ ${this.scorer.generateMessage(profile, scoreData)}
       // Handle different match formats - LLM might use 'points' or 'weight'
       breakdown[category] += match.points || match.weight || match.score || 0;
     });
+    
     console.log('NetworkIQ: buildBreakdownFromMatches result:', breakdown);
     return breakdown;
   }
