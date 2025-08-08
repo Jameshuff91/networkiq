@@ -148,6 +148,40 @@
       </div>
     </div>
 
+    <!-- Settings Section -->
+    <div class="settings-section" style="border-top: 1px solid #E0E0E0; padding-top: 16px; margin-top: 16px;">
+      <h3>⚙️ Advanced Settings</h3>
+      
+      <div class="setting-item">
+        <div class="setting-header">
+          <label for="llmBatchToggle" class="setting-label">
+            <span class="setting-title">🧠 AI Batch Scoring</span>
+            <span class="setting-description">Use advanced AI for more accurate batch profile scoring</span>
+          </label>
+          <div class="toggle-switch">
+            <input type="checkbox" id="llmBatchToggle" class="toggle-checkbox">
+            <label for="llmBatchToggle" class="toggle-slider"></label>
+          </div>
+        </div>
+        <div class="setting-note">
+          <small>⚠️ Uses more resources but provides better accuracy. Individual profiles always use AI.</small>
+        </div>
+      </div>
+      
+      <div class="setting-item">
+        <div class="setting-header">
+          <label for="llmAnalysisToggle" class="setting-label">
+            <span class="setting-title">🤖 AI Analysis</span>
+            <span class="setting-description">Use AI for profile analysis and message generation</span>
+          </label>
+          <div class="toggle-switch">
+            <input type="checkbox" id="llmAnalysisToggle" class="toggle-checkbox" checked>
+            <label for="llmAnalysisToggle" class="toggle-slider"></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Footer -->
     <div class="popup-footer">
       <a href="#" id="dashboardLink">Dashboard</a>

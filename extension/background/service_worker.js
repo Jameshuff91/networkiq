@@ -112,14 +112,24 @@ async function handleAPICall(endpoint, data) {
       console.log(`API call to ${endpoint} WITHOUT auth token - this will likely fail`);
     }
     
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(data)
-    });
+    // Set longer timeout for batch operations
+    const timeoutMs = endpoint.includes('/batch') ? 60000 : 10000; // 60s for batch, 10s for others
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(data),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
       
       // Handle specific error codes
       if (response.status === 429) {
@@ -145,17 +155,26 @@ async function handleAPICall(endpoint, data) {
         };
       }
       
-      throw new Error(errorData.detail || `API error: ${response.status}`);
+        throw new Error(errorData.detail || `API error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      // Update usage tracking
+      if (endpoint === '/profiles/score' || endpoint === '/messages/generate') {
+        updateUsageTracking();
+      }
+      
+      return result;
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+          throw new Error('Request timeout');
+      }
+      throw error;
     }
     
-    const result = await response.json();
-    
-    // Update usage tracking
-    if (endpoint === '/profiles/score' || endpoint === '/messages/generate') {
-      updateUsageTracking();
-    }
-    
-    return result;
   } catch (error) {
     console.error('API call failed:', error);
     
@@ -325,9 +344,11 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   };
   
   // Set a timeout to ensure response is always sent
+  // Use longer timeout for batch operations
+  const timeoutDuration = (request.action === 'analyzeBatch') ? 60000 : 10000; // 60s for batch, 10s for others
   const timeout = setTimeout(() => {
     safeResponse({ error: 'Request timeout', code: 'TIMEOUT' });
-  }, 10000); // 10 second timeout
+  }, timeoutDuration);
   
   // Original response wrapper that clears timeout
   const originalSendResponse = (data) => {
@@ -369,11 +390,37 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       })();
       return true; // Will respond asynchronously
       
+    case 'analyzeBatch':
+      // Batch profile analysis using LLM
+      (async () => {
+        try {
+          // Ensure auth is loaded first
+          if (!userState.token) {
+            console.log('No auth token for batch analysis, attempting to load...');
+            await loadAuthToken();
+          }
+          
+          console.log('analyzeBatch - processing', request.profiles?.length, 'profiles');
+          
+          const result = await handleAPICall('/profiles/analyze/batch', {
+            profiles: request.profiles || []
+          });
+          originalSendResponse(result);
+        } catch (error) {
+          console.error('analyzeBatch error:', error);
+          originalSendResponse({ error: error.message || 'Failed to analyze batch profiles' });
+        }
+      })();
+      return true; // Will respond asynchronously
+      
     case 'generateMessage':
       // Use LLM for message generation
       handleAPICall('/messages/generate', {
-        profile: request.profile,
-        score_data: request.scoreData
+        profile_data: request.profile,
+        score_data: request.scoreData,
+        tone: request.tone || 'professional',
+        purpose: request.purpose || 'networking',
+        calendly_link: request.calendlyLink || null
       })
         .then(originalSendResponse)
         .catch(error => originalSendResponse({ error: error.message }));

@@ -178,92 +178,6 @@ async def root():
     return {"message": "NetworkIQ API v1.0.0", "status": "operational"}
 
 
-@app.post("/api/auth/test-login")
-async def test_login():
-    """Quick test login endpoint for development - creates/returns a test user token"""
-    test_email = "test@networkiq.ai"
-    test_user_id = "test_user_" + hashlib.md5(test_email.encode()).hexdigest()[:8]
-
-    # Create or get test user
-    if test_user_id not in users_db:
-        users_db[test_user_id] = {
-            "id": test_user_id,
-            "email": test_email,
-            "name": "Test User",
-            "tier": "pro",  # Pro tier for testing all features
-            "created_at": datetime.now(UTC).isoformat(),
-            "background": {
-                "search_elements": [
-                    {
-                        "value": "air force academy",
-                    "weight": 40,
-                    "display": "Air Force Academy",
-                    "category": "education",
-                },
-                {
-                    "value": "usafa",
-                    "weight": 40,
-                    "display": "USAFA",
-                    "category": "education",
-                },
-                {
-                    "value": "anthropic",
-                    "weight": 25,
-                    "display": "Anthropic",
-                    "category": "company",
-                },
-                {
-                    "value": "machine learning",
-                    "weight": 15,
-                    "display": "Machine Learning",
-                    "category": "skill",
-                },
-            ],
-            },
-            # Also add at top level for backwards compatibility
-            "search_elements": [
-                {
-                    "value": "air force academy",
-                    "weight": 40,
-                    "display": "Air Force Academy",
-                    "category": "education",
-                },
-                {
-                    "value": "usafa",
-                    "weight": 40,
-                    "display": "USAFA",
-                    "category": "education",
-                },
-                {
-                    "value": "anthropic",
-                    "weight": 25,
-                    "display": "Anthropic",
-                    "category": "company",
-                },
-                {
-                    "value": "machine learning",
-                    "weight": 15,
-                    "display": "Machine Learning",
-                    "category": "skill",
-                },
-            ],
-        }
-        save_db("users", users_db)
-
-    # Create JWT token
-    token_data = {
-        "sub": test_user_id,
-        "email": test_email,
-        "exp": datetime.now(UTC) + timedelta(hours=JWT_EXPIRATION_HOURS),
-    }
-    token = jwt.encode(token_data, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {"email": test_email, "tier": "pro", "name": "Test User"},
-    }
-
 
 @app.post("/api/auth/signup")
 async def signup(user_data: UserSignup):
@@ -729,8 +643,9 @@ async def generate_message(
     message_data: MessageGenerate, current_user: dict = Depends(get_current_user)
 ):
     """Generate personalized LinkedIn message"""
-    # Check if user is Pro
-    if current_user["subscription_tier"] == "free":
+    # Check if user is Pro (check both possible field names)
+    user_tier = current_user.get("subscription_tier") or current_user.get("tier", "free")
+    if user_tier == "free":
         # Check daily limit
         user_id = current_user["id"]
         today = datetime.now(UTC).date().isoformat()

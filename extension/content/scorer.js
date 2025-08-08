@@ -72,12 +72,25 @@ class NetworkScorer {
     // Convert profile text to lowercase for matching
     const profileText = (profile.text || '').toLowerCase();
     const profileName = (profile.name || '').toLowerCase();
-    const profileHeadline = (profile.headline || '').toLowerCase();
+    const profileHeadline = (profile.headline || profile.title || '').toLowerCase();
     const profileAbout = (profile.about || '').toLowerCase();
+    const profileCompany = (profile.company || '').toLowerCase();
+    const profileLocation = (profile.location || '').toLowerCase();
+    const profileExperience = (profile.experience || '').toLowerCase();
+    const profileEducation = (profile.education || '').toLowerCase();
     
-    // Combine all text for searching
-    const fullText = `${profileText} ${profileName} ${profileHeadline} ${profileAbout}`;
+    // Combine all text for searching - include all available fields
+    const fullText = `${profileText} ${profileName} ${profileHeadline} ${profileAbout} ${profileCompany} ${profileLocation} ${profileExperience} ${profileEducation}`.replace(/\s+/g, ' ').trim();
 
+    // Debug: Show what we're searching through
+    if (profile.name && (fullText.includes('air force academy') || fullText.includes('haley'))) {
+      console.log(`NetworkIQ: Debugging scoring for ${profile.name}:`);
+      console.log(`  - Full text length: ${fullText.length}`);
+      console.log(`  - Contains "air force academy": ${fullText.includes('air force academy')}`);
+      console.log(`  - Contains "united states air force academy": ${fullText.includes('united states air force academy')}`);
+      console.log(`  - Text sample: "${fullText.substring(0, 300)}"`);
+    }
+    
     // Score based on search elements
     for (const element of this.searchElements) {
       const searchValue = (element.value || element.text || '').toLowerCase();
@@ -86,9 +99,10 @@ class NetworkScorer {
       if (this.containsMatch(fullText, searchValue)) {
         totalScore += element.weight;
         
-        // Debug military/academy matches
+        // Debug all matches for troubleshooting
+        console.log(`NetworkIQ: Found match "${searchValue}" (weight: ${element.weight}) for ${profile.name}`);
         if (searchValue.includes('air force') || searchValue.includes('academy') || searchValue.includes('usafa')) {
-          console.log(`NetworkIQ: Found military match "${searchValue}" for ${profile.name}`);
+          console.log(`NetworkIQ: ⭐ Military match found! Text: "${fullText.substring(0, 500)}"`);
         }
         
         // Track breakdown by category

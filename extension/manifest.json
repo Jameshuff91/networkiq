@@ -24,6 +24,7 @@
       "js": [
         "content/parser.js",
         "content/scorer.js",
+        "content/cache.js",
         "content/ui.js"
       ],
       "css": ["content/styles.css"],

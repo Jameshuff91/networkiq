@@ -350,31 +350,48 @@ class LinkedInParser {
       // Extract name - try multiple approaches
       let name = '';
       
-      // First try: specific selectors
+      // First try: specific selectors for name only (avoid getting title/location)
       const nameSelectors = [
         '.entity-result__title-text span[aria-hidden="true"]',
         '.entity-result__title-line span[dir="ltr"] > span[aria-hidden="true"]',
         'span[class*="entity-result__title-text"] span[aria-hidden="true"]',
-        // New selectors
+        // New selectors - be more specific
         'span[aria-hidden="true"]',
-        '.ember-view span[aria-hidden="true"]',
-        'a[href*="/in/"] span[aria-hidden="true"]',
-        'a[href*="/in/"] span span'
+        '.ember-view span[aria-hidden="true"]'
       ];
       
       for (const selector of nameSelectors) {
         const nameElement = card.querySelector(selector);
         if (nameElement?.textContent?.trim()) {
-          name = nameElement.textContent.trim();
-          break;
+          let potentialName = nameElement.textContent.trim();
+          
+          // Clean up the name - remove common LinkedIn artifacts
+          potentialName = potentialName
+            .replace(/\n/g, ' ')
+            .replace(/\s+/g, ' ')
+            .replace(/^\d+\w*\s*/, '') // Remove "1st", "2nd", "3rd" prefixes
+            .replace(/\s*(San Francisco Bay Area|Greater Chicago Area|United States|CA|NY).*$/i, '') // Remove location suffixes
+            .trim();
+          
+          // Only use if it looks like a name (not a title or location)
+          if (potentialName && 
+              !potentialName.toLowerCase().includes('degree connection') &&
+              !potentialName.toLowerCase().includes('google') &&
+              !potentialName.toLowerCase().includes('san francisco') &&
+              potentialName.length < 50) { // Names shouldn't be too long
+            name = potentialName;
+            break;
+          }
         }
       }
       
-      // Fallback: get text from the profile link itself
+      // Fallback: try to extract from the profile link URL
       if (!name) {
-        const linkText = link.textContent?.trim();
-        if (linkText && !linkText.includes('View') && !linkText.includes('profile')) {
-          name = linkText;
+        const urlParts = url.split('/in/')[1]?.split('-');
+        if (urlParts && urlParts.length >= 2) {
+          name = urlParts.slice(0, 2).map(part => 
+            part.charAt(0).toUpperCase() + part.slice(1)
+          ).join(' ');
         }
       }
       
@@ -406,21 +423,69 @@ class LinkedInParser {
       );
       const location = locationElement?.textContent?.trim();
       
-      // Get summary/snippet text if available
-      const summaryElement = card.querySelector(
-        '.entity-result__summary, ' +
-        '[class*="summary"], ' +
-        '.entity-result__divider + .t-12'
-      );
-      const summary = summaryElement?.textContent?.trim();
+      // Get summary/snippet text if available - look for more elements
+      const summarySelectors = [
+        '.entity-result__summary',
+        '[class*="summary"]',
+        '.entity-result__divider + .t-12',
+        '[class*="insight"]', // LinkedIn insight boxes
+        '[class*="highlight"]', // Profile highlights
+        '.search-result__info', // Additional info sections
+        '[data-test-id*="snippet"]' // Text snippets
+      ];
       
-      // Get mutual connections if shown
-      const mutualElement = card.querySelector(
-        '[class*="shared-connections"], ' +
-        '[class*="mutual"], ' +
-        '.entity-result__insights span'
-      );
-      const mutualConnections = mutualElement?.textContent?.trim();
+      let summary = '';
+      for (const selector of summarySelectors) {
+        const summaryElement = card.querySelector(selector);
+        if (summaryElement?.textContent?.trim()) {
+          const text = summaryElement.textContent.trim();
+          if (text.length > summary.length) {
+            summary = text;
+          }
+        }
+      }
+      
+      // Get mutual connections if shown - expanded selectors
+      const mutualSelectors = [
+        '[class*="shared-connections"]',
+        '[class*="mutual"]',
+        '.entity-result__insights span',
+        '[class*="connection-insight"]',
+        'span:contains("mutual connection")', // Not valid CSS but conceptual
+        '[class*="highlight"]' // Sometimes mutual connections are in highlights
+      ];
+      
+      let mutualConnections = '';
+      for (const selector of mutualSelectors) {
+        // Skip invalid selectors
+        if (selector.includes(':contains')) continue;
+        
+        try {
+          const mutualElement = card.querySelector(selector);
+          if (mutualElement?.textContent?.trim()) {
+            const text = mutualElement.textContent.trim();
+            if (text.includes('mutual') || text.includes('connection') || text.includes('both')) {
+              mutualConnections = text;
+              break;
+            }
+          }
+        } catch (e) {
+          // Skip invalid selectors
+          console.log('NetworkIQ: Skipping invalid selector:', selector);
+        }
+      }
+      
+      // Also search for "mutual connection" text in all spans if not found
+      if (!mutualConnections) {
+        const allSpans = card.querySelectorAll('span');
+        for (const span of allSpans) {
+          const text = span.textContent?.trim() || '';
+          if (text.includes('mutual connection')) {
+            mutualConnections = text;
+            break;
+          }
+        }
+      }
       
       // Extract company from title
       let company = '';
@@ -448,13 +513,56 @@ class LinkedInParser {
       
       // Get ALL text from the card for comprehensive matching
       // This ensures we catch things like "Air Force Academy" that might be anywhere
-      const cardFullText = card.textContent?.replace(/\s+/g, ' ').trim() || '';
+      let cardFullText = '';
+      
+      // Try to get text more precisely to avoid cross-contamination between cards
+      try {
+        // Clone the card to avoid modifying the original
+        const cardClone = card.cloneNode(true);
+        
+        // Remove any nested search result cards that might contaminate the text
+        const nestedCards = cardClone.querySelectorAll('.entity-result__item, [data-chameleon-result-urn]');
+        nestedCards.forEach(nested => {
+          if (nested !== cardClone) nested.remove();
+        });
+        
+        cardFullText = cardClone.textContent?.replace(/\s+/g, ' ').trim() || '';
+        
+        // Fallback: if clone fails, use original but limit length
+        if (!cardFullText) {
+          cardFullText = card.textContent?.replace(/\s+/g, ' ').trim().substring(0, 1000) || '';
+        }
+      } catch (e) {
+        // Fallback to basic extraction
+        cardFullText = card.textContent?.replace(/\s+/g, ' ').trim().substring(0, 1000) || '';
+      }
+      
       const structuredText = `${name} ${title} ${company} ${location} ${summary}`.toLowerCase();
       
-      // Combine both for maximum coverage
-      const fullText = (cardFullText + ' ' + structuredText).toLowerCase();
+      // Also look for any additional text elements that might contain keywords
+      const additionalTextElements = card.querySelectorAll('span[aria-hidden="true"]:not(.entity-result__item span), div[class*="subline"]:not(.entity-result__item div)');
+      const additionalTexts = Array.from(additionalTextElements)
+        .map(el => el.textContent?.trim())
+        .filter(text => text && text.length > 0 && text.length < 200) // Avoid very long text that might be contamination
+        .join(' ')
+        .toLowerCase();
       
-      console.log(`NetworkIQ: Card ${index} full text sample:`, fullText.substring(0, 200));
+      // Combine all text sources for maximum coverage but with reasonable limits
+      const fullText = (cardFullText + ' ' + structuredText + ' ' + additionalTexts)
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+        .substring(0, 2000); // Limit total text length to avoid huge strings
+      
+      console.log(`NetworkIQ: Card ${index} (${name}):`);
+      console.log(`  - Title: "${title}"`);
+      console.log(`  - Summary: "${summary}"`);
+      console.log(`  - Mutual: "${mutualConnections}"`);
+      console.log(`  - Full text sample: "${fullText.substring(0, 200)}"`);
+      
+      // Debug: Check if this specific profile contains key terms
+      if (fullText.includes('air force academy') || fullText.includes('usafa') || fullText.includes('veteran')) {
+        console.log(`NetworkIQ: ⭐ MILITARY/ACADEMY found in card ${index} (${name}):`, fullText.substring(0, 500));
+      }
       
       // Add profile if we have at least a URL (name might be empty on some cards)
       if (url && !profiles.find(p => p.url === url)) {

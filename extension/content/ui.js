@@ -139,12 +139,35 @@ class NetworkIQUI {
       
       if (useLLM) {
         try {
-          // Check if extension context is still valid
-          if (!chrome.runtime?.id) {
-            console.log('NetworkIQ: Extension context invalid, using local scoring');
-            scoreData = this.scorer.calculateScore(profile);
-          } else {
-            console.log('NetworkIQ: Sending to LLM with search elements:', this.scorer.searchElements);
+          // First check cache
+          try {
+            const cachedResult = await window.profileAnalysisCache.get(profile.url, this.scorer.searchElements);
+            if (cachedResult) {
+              console.log('NetworkIQ: Cache hit for individual profile:', profile.name);
+              scoreData = {
+                score: cachedResult.score,
+                tier: cachedResult.tier,
+                matches: cachedResult.matches || [],
+                breakdown: cachedResult.breakdown || this.buildBreakdownFromMatches(cachedResult.matches || []),
+                insights: cachedResult.insights || [],
+                hiddenConnections: cachedResult.hidden_connections || [],
+                recommendation: cachedResult.recommendation || '',
+                message: cachedResult.message,
+                cached: true
+              };
+            }
+          } catch (error) {
+            console.warn('NetworkIQ: Cache error for individual profile:', error);
+          }
+          
+          // If not cached, proceed with LLM or local scoring
+          if (!scoreData) {
+            // Check if extension context is still valid
+            if (!chrome.runtime?.id) {
+              console.log('NetworkIQ: Extension context invalid, using local scoring');
+              scoreData = this.scorer.calculateScore(profile);
+            } else {
+              console.log('NetworkIQ: Sending to LLM with search elements:', this.scorer.searchElements);
             const response = await chrome.runtime.sendMessage({
               action: 'analyzeProfile',
               profile: profile,
@@ -152,6 +175,16 @@ class NetworkIQUI {
             });
             
             if (response && !response.error) {
+              console.log('NetworkIQ: LLM response for', profile.name, ':', response);
+              
+              // Cache the raw response for future use
+              try {
+                await window.profileAnalysisCache.set(profile.url, this.scorer.searchElements, response);
+                console.log(`NetworkIQ: Cached individual profile result for ${profile.name}`);
+              } catch (error) {
+                console.warn('NetworkIQ: Failed to cache individual profile result:', error);
+              }
+              
               // Format LLM response to match local scorer format
               scoreData = {
                 score: response.score,
@@ -163,8 +196,11 @@ class NetworkIQUI {
                 recommendation: response.recommendation || '',
                 message: response.message
               };
+              console.log('NetworkIQ: Formatted scoreData for', profile.name, ':', scoreData);
             } else {
+              console.log('NetworkIQ: LLM response error, using local scoring:', response);
               scoreData = this.scorer.calculateScore(profile);
+            }
             }
           }
         } catch (error) {
@@ -265,19 +301,46 @@ class NetworkIQUI {
         <div class="niq-section">
           <h4>💡 Connection Insights</h4>
           <div class="niq-insights">
-            ${(scoreData.matches || []).slice(0, 3).map(match => {
-              let matchText;
-              if (typeof match === 'string') {
-                matchText = match;
-              } else if (match.found_in_profile) {
-                // LLM format
-                matchText = `${match.matches_element} (${match.found_in_profile})`;
-              } else {
-                // Local format
-                matchText = match.text || match.display || match.value || '';
+            ${(() => {
+              const matches = scoreData.matches || [];
+              console.log('NetworkIQ: UI displaying matches for', profile.name, ':', matches);
+              
+              if (matches.length === 0 && scoreData.score > 0) {
+                // If we have a score but no matches array, try to extract from breakdown
+                const breakdown = scoreData.breakdown || {};
+                const breakdownMatches = Object.entries(breakdown)
+                  .filter(([_, value]) => value > 0)
+                  .map(([key, _]) => this.formatLabel(key));
+                
+                if (breakdownMatches.length > 0) {
+                  return breakdownMatches.slice(0, 3).map(match => 
+                    `<div class="niq-insight-chip">✓ ${match}</div>`
+                  ).join('');
+                }
               }
-              return `<div class="niq-insight-chip">✓ ${matchText}</div>`;
-            }).join('') || '<div class="niq-insight-chip">No direct matches found</div>'}
+              
+              const validMatches = matches.slice(0, 3).map(match => {
+                let matchText;
+                if (typeof match === 'string') {
+                  matchText = match;
+                } else if (match.matches_element) {
+                  // LLM format - show the element name, optionally with context
+                  matchText = match.matches_element;
+                  if (match.found_in_profile && match.found_in_profile !== match.matches_element.toLowerCase()) {
+                    matchText += ` (${match.found_in_profile})`;
+                  }
+                } else {
+                  // Local format (from scorer.js)
+                  matchText = match.text || match.display || match.value || '';
+                }
+                return matchText ? `<div class="niq-insight-chip">✓ ${matchText}</div>` : '';
+              }).filter(text => text.length > 0);
+              
+              return validMatches.length > 0 ? validMatches.join('') : 
+                (scoreData.score > 0 ? 
+                  `<div class="niq-insight-chip">✓ Profile compatibility detected</div>` : 
+                  `<div class="niq-insight-chip">No direct matches found</div>`);
+            })()}
           </div>
           ${scoreData.hiddenConnections && scoreData.hiddenConnections.length > 0 ? `
             <div class="niq-hidden-connections" style="margin-top: 8px;">
@@ -419,17 +482,23 @@ class NetworkIQUI {
   attachMessageBoxListeners(message) {
     // Copy message
     document.getElementById('niq-copy-message')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(message);
+      // Get the current message from the textarea (in case it was regenerated or edited)
+      const textarea = document.querySelector('.niq-message-text');
+      const currentMessage = textarea ? textarea.value : message;
+      navigator.clipboard.writeText(currentMessage);
       this.showToast('Message copied to clipboard!');
       this.trackEvent('message_copied');
     });
 
     // Regenerate message (Pro feature)
     document.getElementById('niq-regenerate')?.addEventListener('click', async () => {
+      // TODO: Re-enable for production
+      /*
       if (this.userTier === 'free') {
         this.showUpgradePrompt('Regenerate messages with AI');
         return;
       }
+      */
       await this.regenerateMessage();
     });
 
@@ -442,7 +511,10 @@ class NetworkIQUI {
           // Try to find and fill the message field
           const messageField = document.querySelector('textarea[name="message"]');
           if (messageField) {
-            messageField.value = message;
+            // Get the current message from the textarea (in case it was regenerated or edited)
+            const textarea = document.querySelector('.niq-message-text');
+            const currentMessage = textarea ? textarea.value : message;
+            messageField.value = currentMessage;
             messageField.dispatchEvent(new Event('input', { bubbles: true }));
             this.trackEvent('connection_initiated');
           }
@@ -453,8 +525,19 @@ class NetworkIQUI {
 
   async regenerateMessage() {
     try {
+      console.log('NetworkIQ: Regenerating message...');
+      console.log('NetworkIQ: Current profile:', this.currentProfile);
+      
       // Get saved Calendly link
       const storage = await chrome.storage.local.get(['calendlyLink']);
+      
+      // Show loading state
+      const textarea = document.querySelector('.niq-message-text');
+      const regenerateBtn = document.getElementById('niq-regenerate');
+      if (regenerateBtn) {
+        regenerateBtn.disabled = true;
+        regenerateBtn.textContent = 'Generating...';
+      }
       
       const response = await chrome.runtime.sendMessage({
         action: 'generateMessage',
@@ -462,18 +545,52 @@ class NetworkIQUI {
         scoreData: this.currentProfile.scoreData,
         calendlyLink: storage.calendlyLink || ''
       });
+      
+      console.log('NetworkIQ: Generate message response:', response);
+      console.log('NetworkIQ: Response type:', typeof response);
+      console.log('NetworkIQ: Response keys:', response ? Object.keys(response) : 'null');
 
-      if (response.success) {
-        const textarea = document.querySelector('.niq-message-text');
+      // Handle both response formats (with .success or direct .message)
+      if (response && response.message && typeof response.message === 'string') {
         if (textarea) {
           textarea.value = response.message;
           this.showToast('New message generated!');
           this.trackEvent('message_regenerated');
         }
+      } else if (response && typeof response === 'string') {
+        // Sometimes the response might be a direct string
+        if (textarea) {
+          textarea.value = response;
+          this.showToast('New message generated!');
+          this.trackEvent('message_regenerated');
+        }
+      } else if (response && response.error) {
+        console.error('NetworkIQ: Message generation error:', response.error);
+        this.showToast(response.error || 'Failed to generate message. Please try again.');
+      } else {
+        console.error('NetworkIQ: Unexpected response format:', response);
+        // If we somehow get an object, try to extract any text we can find
+        if (response && typeof response === 'object') {
+          const possibleMessage = response.text || response.data || response.result || 
+                                 (response.response && response.response.message) || 
+                                 JSON.stringify(response);
+          if (textarea && possibleMessage !== '[object Object]') {
+            textarea.value = possibleMessage;
+            console.warn('NetworkIQ: Had to extract message from unexpected format');
+          }
+        }
+        this.showToast('Message generated with unexpected format. Please check.');
       }
     } catch (error) {
-      console.error('Failed to regenerate message:', error);
+      console.error('NetworkIQ: Failed to regenerate message:', error);
       this.showToast('Failed to generate message. Please try again.');
+    } finally {
+      // Restore button state
+      const regenerateBtn = document.getElementById('niq-regenerate');
+      if (regenerateBtn) {
+        regenerateBtn.disabled = false;
+        regenerateBtn.textContent = '🔄 Regenerate';
+      }
     }
   }
 
@@ -481,6 +598,12 @@ class NetworkIQUI {
     // Enhanced batch scoring for search results
     console.log('NetworkIQ: Starting batch scoring for search results...');
     console.log('NetworkIQ: Current URL:', window.location.href);
+    
+    // Check if we should use LLM for batch scoring (default: no for performance)
+    // To enable batch LLM processing, run in console: chrome.storage.local.set({ useLLMForBatch: true })
+    const settings = await chrome.storage.local.get(['useLLMForBatch', 'useLLMAnalysis']);
+    const useLLMForBatch = settings.useLLMForBatch === true;
+    const useLLMAnalysis = settings.useLLMAnalysis !== false;
     
     // Debug: Check what elements exist on the page
     const debugSelectors = [
@@ -514,49 +637,312 @@ class NetworkIQUI {
     // Create summary bar if not exists
     this.createSummaryBar();
     
-    // Score all profiles
+    // Score all profiles - use for...of loop to handle async properly
     const scoredProfiles = [];
     let highScoreCount = 0;
     let mediumScoreCount = 0;
     let lowScoreCount = 0;
     
-    profiles.forEach((profile, idx) => {
-      // Calculate comprehensive score using resume data
-      const profileData = {
-        name: profile.name,
-        title: profile.title,
-        company: profile.company,
-        location: profile.location,
-        text: profile.fullText || `${profile.name} ${profile.title} ${profile.company} ${profile.location} ${profile.summary}`.toLowerCase(),
-        about: profile.summary || ''
+    console.log(`NetworkIQ: Starting to score ${profiles.length} profiles${useLLMForBatch ? ' with LLM' : ' locally'}`);
+    
+    // Prepare profile data for scoring
+    const profilesData = profiles.map(profile => ({
+      url: profile.url,
+      name: profile.name,
+      title: profile.title,
+      company: profile.company,
+      location: profile.location,
+      // Map fullText to both 'text' and 'headline' for better matching
+      text: profile.fullText || `${profile.name} ${profile.title} ${profile.company} ${profile.location} ${profile.summary}`.toLowerCase(),
+      headline: profile.title || '', // Add headline field that scorer expects
+      about: profile.summary || '', // Add about field
+      experience: profile.company || '', // Map company to experience
+      education: '', // Will be extracted from fullText if present
+      skills: [], // Will be extracted from fullText if present
+      connectionDegree: '', // Not available in search results
+      profilePicture: profile.imageUrl || '',
+      timestamp: new Date().toISOString()
+    }));
+    
+    // Debug: log what we're scoring
+    console.log('NetworkIQ: Scoring profile data sample:', profilesData.slice(0, 2));
+    console.log('NetworkIQ: Scorer search elements:', this.scorer.searchElements);
+    
+    // Check cache first for batch analysis
+    console.log('NetworkIQ: Checking cache for profiles...');
+    const cachedResults = [];
+    const uncachedProfiles = [];
+    const uncachedProfilesData = [];
+    
+    for (let i = 0; i < profiles.length; i++) {
+      const profile = profiles[i];
+      const profileData = profilesData[i];
+      
+      try {
+        const cachedResult = await window.profileAnalysisCache.get(profile.url, this.scorer.searchElements);
+        if (cachedResult) {
+          console.log(`NetworkIQ: Cache hit for ${profile.name}`);
+          cachedResults.push({
+            profile,
+            profileData,
+            result: cachedResult,
+            cached: true
+          });
+        } else {
+          uncachedProfiles.push(profile);
+          uncachedProfilesData.push(profileData);
+        }
+      } catch (error) {
+        console.warn('NetworkIQ: Cache error for profile', profile.name, error);
+        uncachedProfiles.push(profile);
+        uncachedProfilesData.push(profileData);
+      }
+    }
+    
+    console.log(`NetworkIQ: Cache stats - ${cachedResults.length} cached, ${uncachedProfiles.length} need analysis`);
+    
+    // Process cached results immediately
+    cachedResults.forEach(({ profile, result }) => {
+      const scoreData = {
+        score: result.score,
+        tier: result.tier,
+        matches: result.matches || [],
+        breakdown: result.breakdown || this.buildBreakdownFromMatches(result.matches || []),
+        insights: result.insights || [],
+        hiddenConnections: result.hidden_connections || [],
+        recommendation: result.recommendation || '',
+        message: result.message,
+        cached: true
       };
       
-      // Debug: log what we're scoring
-      if (idx === 0) {
-        console.log('NetworkIQ: Scoring profile with data:', profileData);
-        console.log('NetworkIQ: Scorer search elements:', this.scorer.searchElements);
-      }
-      
-      const scoreData = this.scorer.calculateScore(profileData);
-      
-      // Store scored profile with properly serialized matches
+      // Store scored profile
       scoredProfiles.push({
         ...profile,
-        score: scoreData.score,
-        tier: scoreData.tier,
-        matches: (scoreData.matches || []).map(m => 
+        score: result.score,
+        tier: result.tier,
+        matches: (result.matches || []).map(m => 
           typeof m === 'string' ? m : (m.text || m.display || m.value || '')
         )
       });
       
       // Count by tier
-      if (scoreData.tier === 'high') highScoreCount++;
-      else if (scoreData.tier === 'medium') mediumScoreCount++;
+      if (result.tier === 'high') highScoreCount++;
+      else if (result.tier === 'medium') mediumScoreCount++;
       else lowScoreCount++;
       
-      // Add visual badge to the profile card
+      // Add visual badge immediately
       this.addScoreBadgeToCard(profile, scoreData);
     });
+
+    // Use batch LLM analysis for uncached profiles only
+    if (useLLMForBatch && useLLMAnalysis && chrome.runtime?.id && uncachedProfilesData.length > 0) {
+      try {
+        // Create and show progress bar for uncached profiles only
+        const progressBar = this.createProgressBar(uncachedProfilesData.length);
+        
+        // Process in smaller chunks to avoid timeouts (max 3 profiles per batch)
+        const chunkSize = 3;
+        const chunks = [];
+        for (let i = 0; i < uncachedProfilesData.length; i += chunkSize) {
+          chunks.push({
+            profiles: uncachedProfilesData.slice(i, i + chunkSize),
+            originalProfiles: uncachedProfiles.slice(i, i + chunkSize),
+            startIdx: i
+          });
+        }
+        
+        console.log(`NetworkIQ: Using batch LLM for ${uncachedProfilesData.length} uncached profiles in ${chunks.length} chunks of ${chunkSize}`);
+        
+        let allResults = [];
+        let processedCount = 0;
+        
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+          const chunkData = chunks[chunkIndex];
+          const chunk = chunkData.profiles;
+          console.log(`NetworkIQ: Processing chunk ${chunkIndex + 1}/${chunks.length} with ${chunk.length} profiles`);
+          
+          try {
+            const batchResponse = await chrome.runtime.sendMessage({
+              action: 'analyzeBatch',
+              profiles: chunk
+            });
+            
+            console.log(`NetworkIQ: Chunk ${chunkIndex + 1} response:`, batchResponse);
+            
+            if (batchResponse && !batchResponse.error && batchResponse.results) {
+              // Process results as they come in and cache them
+              batchResponse.results.forEach(async (result, idx) => {
+                const profile = chunkData.originalProfiles[idx];
+                
+                const scoreData = !result.error ? {
+                    score: result.score,
+                    tier: result.tier,
+                    matches: result.matches || [],
+                    breakdown: this.buildBreakdownFromMatches(result.matches || []),
+                    insights: result.insights || [],
+                    hiddenConnections: result.hidden_connections || [],
+                    recommendation: result.recommendation || '',
+                    message: result.message
+                  } : {
+                    score: 0,
+                    tier: 'low',
+                    matches: [],
+                    breakdown: {},
+                    insights: [],
+                    hiddenConnections: [],
+                    recommendation: '',
+                    message: null
+                  };
+                  
+                  // Cache the result for future use (only if successful)
+                  if (!result.error) {
+                    try {
+                      await window.profileAnalysisCache.set(profile.url, this.scorer.searchElements, result);
+                      console.log(`NetworkIQ: Cached result for ${profile.name}`);
+                    } catch (error) {
+                      console.warn('NetworkIQ: Failed to cache result for', profile.name, error);
+                    }
+                  }
+                  
+                  // Immediately add visual badge to the profile card
+                  this.addScoreBadgeToCard(profile, scoreData);
+                  
+                  processedCount++;
+                  this.updateProgressBar(progressBar, processedCount, uncachedProfilesData.length);
+              });
+              
+              allResults = allResults.concat(batchResponse.results);
+            } else {
+              console.warn(`NetworkIQ: Chunk ${chunkIndex + 1} failed:`, batchResponse?.error);
+              // Add empty results and badges for failed chunk profiles
+              for (let i = 0; i < chunk.length; i++) {
+                const profileIdx = chunkData.startIdx + i;
+                const profile = profiles[profileIdx];
+                allResults.push({ error: 'Chunk processing failed', score: 0, tier: 'low' });
+                
+                // Add low score badge for failed profile
+                this.addScoreBadgeToCard(profile, {
+                  score: 0,
+                  tier: 'low',
+                  matches: [],
+                  breakdown: {},
+                  insights: [],
+                  hiddenConnections: [],
+                  recommendation: '',
+                  message: null
+                });
+                
+                processedCount++;
+                this.updateProgressBar(progressBar, processedCount, profilesData.length);
+              }
+            }
+            
+            // Small delay between chunks to avoid rate limiting
+            if (chunkIndex < chunks.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          } catch (chunkError) {
+            console.error(`NetworkIQ: Chunk ${chunkIndex + 1} error:`, chunkError);
+            // Add empty results and badges for failed chunk profiles
+            for (let i = 0; i < chunk.length; i++) {
+              const profileIdx = chunkData.startIdx + i;
+              const profile = profiles[profileIdx];
+              allResults.push({ error: chunkError.message, score: 0, tier: 'low' });
+              
+              // Add low score badge for failed profile
+              this.addScoreBadgeToCard(profile, {
+                score: 0,
+                tier: 'low',
+                matches: [],
+                breakdown: {},
+                insights: [],
+                hiddenConnections: [],
+                recommendation: '',
+                message: null
+              });
+              
+              processedCount++;
+              this.updateProgressBar(progressBar, processedCount, profilesData.length);
+            }
+          }
+        }
+        
+        // Remove progress bar after completion
+        setTimeout(() => {
+          progressBar?.remove();
+        }, 1000)
+        
+        // Process final results after all chunks are complete
+        console.log(`NetworkIQ: Batch LLM completed - ${allResults.filter(r => !r.error).length}/${allResults.length} successful`);
+        
+        // Count results and store profiles (already added badges during streaming)
+        allResults.forEach((result, idx) => {
+          const profile = profiles[idx];
+          if (!result.error) {
+            // Store scored profile
+            scoredProfiles.push({
+              ...profile,
+              score: result.score,
+              tier: result.tier,
+              matches: (result.matches || []).map(m => 
+                typeof m === 'string' ? m : (m.text || m.display || m.value || '')
+              )
+            });
+            
+            // Count by tier
+            if (result.tier === 'high') highScoreCount++;
+            else if (result.tier === 'medium') mediumScoreCount++;
+            else lowScoreCount++;
+          } else {
+            // Fallback to local scoring for failed profiles
+            const scoreData = this.scorer.calculateScore(profilesData[idx]);
+            scoredProfiles.push({
+              ...profile,
+              score: scoreData.score,
+              tier: scoreData.tier,
+              matches: (scoreData.matches || []).map(m => 
+                typeof m === 'string' ? m : (m.text || m.display || m.value || '')
+              )
+            });
+            if (scoreData.tier === 'high') highScoreCount++;
+            else if (scoreData.tier === 'medium') mediumScoreCount++;
+            else lowScoreCount++;
+            // Add badge for failed profiles
+            this.addScoreBadgeToCard(profile, scoreData);
+          }
+        });
+      } catch (error) {
+        console.error('NetworkIQ: Batch LLM failed, falling back to local scoring:', error);
+        console.error('NetworkIQ: Full error details:', error.message, error.stack);
+        useLLMForBatch = false; // Fallback to local processing
+      }
+    }
+    
+    // If batch LLM wasn't used or failed, process locally
+    if (!useLLMForBatch || scoredProfiles.length === 0) {
+      for (const [idx, profile] of profiles.entries()) {
+        const profileData = profilesData[idx];
+        const scoreData = this.scorer.calculateScore(profileData);
+        
+        // Store scored profile
+        scoredProfiles.push({
+          ...profile,
+          score: scoreData.score,
+          tier: scoreData.tier,
+          matches: (scoreData.matches || []).map(m => 
+            typeof m === 'string' ? m : (m.text || m.display || m.value || '')
+          )
+        });
+        
+        // Count by tier
+        if (scoreData.tier === 'high') highScoreCount++;
+        else if (scoreData.tier === 'medium') mediumScoreCount++;
+        else lowScoreCount++;
+        
+        // Add visual badge to the profile card
+        this.addScoreBadgeToCard(profile, scoreData);
+      }
+    }
     
     // Update summary bar
     this.updateSummaryBar(scoredProfiles, highScoreCount, mediumScoreCount, lowScoreCount);
@@ -950,13 +1336,16 @@ ${this.scorer.generateMessage(profile, scoreData)}
 
   buildBreakdownFromMatches(matches) {
     const breakdown = {};
+    console.log('NetworkIQ: buildBreakdownFromMatches input:', matches);
     matches.forEach(match => {
       const category = match.category || 'other';
       if (!breakdown[category]) {
         breakdown[category] = 0;
       }
-      breakdown[category] += match.points || 0;
+      // Handle different match formats - LLM might use 'points' or 'weight'
+      breakdown[category] += match.points || match.weight || match.score || 0;
     });
+    console.log('NetworkIQ: buildBreakdownFromMatches result:', breakdown);
     return breakdown;
   }
 
@@ -1033,7 +1422,156 @@ ${this.scorer.generateMessage(profile, scoreData)}
       }
     }
   }
+
+  // Create progress bar for batch processing
+  createProgressBar(totalProfiles) {
+    // Remove any existing progress bar
+    const existing = document.querySelector('.networkiq-progress-container');
+    if (existing) existing.remove();
+    
+    // Create progress container
+    const container = document.createElement('div');
+    container.className = 'networkiq-progress-container';
+    container.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      padding: 16px;
+      z-index: 10000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    `;
+    
+    // Add NetworkIQ branding
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    `;
+    header.innerHTML = `
+      <span style="font-weight: 600; font-size: 14px; color: #1a1a1a;">
+        🎯 NetworkIQ Processing
+      </span>
+    `;
+    
+    // Progress text
+    const progressText = document.createElement('div');
+    progressText.className = 'networkiq-progress-text';
+    progressText.style.cssText = `
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+    `;
+    progressText.textContent = `Analyzing 0 of ${totalProfiles} profiles...`;
+    
+    // Progress bar background
+    const progressBarBg = document.createElement('div');
+    progressBarBg.style.cssText = `
+      width: 100%;
+      height: 8px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    `;
+    
+    // Progress bar fill
+    const progressBarFill = document.createElement('div');
+    progressBarFill.className = 'networkiq-progress-fill';
+    progressBarFill.style.cssText = `
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #8B5CF6, #7C3AED);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    `;
+    
+    // Add animation shimmer effect
+    const shimmer = document.createElement('div');
+    shimmer.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      animation: shimmer 2s infinite;
+    `;
+    
+    // Add shimmer animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes shimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    progressBarBg.appendChild(progressBarFill);
+    progressBarBg.appendChild(shimmer);
+    
+    container.appendChild(header);
+    container.appendChild(progressText);
+    container.appendChild(progressBarBg);
+    
+    document.body.appendChild(container);
+    
+    return container;
+  }
+  
+  // Update progress bar
+  updateProgressBar(container, processed, total) {
+    if (!container) return;
+    
+    const progressText = container.querySelector('.networkiq-progress-text');
+    const progressFill = container.querySelector('.networkiq-progress-fill');
+    
+    if (progressText) {
+      progressText.textContent = `Analyzed ${processed} of ${total} profiles...`;
+    }
+    
+    if (progressFill) {
+      const percentage = (processed / total) * 100;
+      progressFill.style.width = `${percentage}%`;
+      
+      // Add completion message
+      if (processed === total) {
+        progressText.textContent = `✅ Completed analyzing ${total} profiles!`;
+        progressText.style.color = '#10b981';
+      }
+    }
+  }
 }
+
+// Listen for messages from popup (cache clearing)
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'clearProfileCache') {
+    console.log('NetworkIQ: Clearing profile cache due to:', request.reason);
+    try {
+      if (window.profileAnalysisCache) {
+        window.profileAnalysisCache.clearAll().then(() => {
+          console.log('NetworkIQ: Profile cache cleared successfully');
+          sendResponse({ success: true });
+        }).catch(error => {
+          console.error('NetworkIQ: Failed to clear cache:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+      } else {
+        console.log('NetworkIQ: Cache not available yet');
+        sendResponse({ success: false, error: 'Cache not initialized' });
+      }
+    } catch (error) {
+      console.error('NetworkIQ: Error clearing cache:', error);
+      sendResponse({ success: false, error: error.message });
+    }
+    return true; // Will respond asynchronously
+  }
+});
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {

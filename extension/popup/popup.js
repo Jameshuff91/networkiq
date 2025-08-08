@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Set up event listeners
   setupEventListeners();
+  
+  // Load and setup toggle switches
+  await setupToggleSwitches();
 });
 
 async function setupDevAuth() {
@@ -266,6 +269,22 @@ async function handleResumeUpload(event) {
         resumeUploadedAt: new Date().toISOString()
       });
       
+      // Clear profile analysis cache since resume changed
+      try {
+        // Notify content scripts to clear cache
+        chrome.tabs.query({url: "*://*.linkedin.com/*"}, (tabs) => {
+          tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {
+              action: 'clearProfileCache',
+              reason: 'resume_updated'
+            }).catch(() => {}); // Ignore errors if content script not loaded
+          });
+        });
+        console.log('NetworkIQ Popup: Notified content scripts to clear cache');
+      } catch (error) {
+        console.warn('NetworkIQ Popup: Failed to clear cache:', error);
+      }
+      
       // Show success
       showStatus('Resume analyzed successfully!', 'success');
       document.getElementById('uploadBtnText').textContent = 'Update Resume';
@@ -359,6 +378,22 @@ async function handleResumeUpload(event) {
         },
         resumeUploadedAt: new Date().toISOString()
       });
+      
+      // Clear profile analysis cache since resume changed
+      try {
+        // Notify content scripts to clear cache
+        chrome.tabs.query({url: "*://*.linkedin.com/*"}, (tabs) => {
+          tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {
+              action: 'clearProfileCache',
+              reason: 'resume_updated'
+            }).catch(() => {}); // Ignore errors if content script not loaded
+          });
+        });
+        console.log('NetworkIQ Popup: Notified content scripts to clear cache');
+      } catch (error) {
+        console.warn('NetworkIQ Popup: Failed to clear cache:', error);
+      }
       
       // Show success
       showStatus('Resume analyzed successfully!', 'success');
@@ -960,6 +995,54 @@ function showStatus(message, type) {
     setTimeout(() => {
       statusEl.className = 'upload-status';
     }, 5000);
+  }
+}
+
+async function setupToggleSwitches() {
+  // Load current settings
+  const settings = await chrome.storage.local.get(['useLLMForBatch', 'useLLMAnalysis']);
+  
+  // Set initial toggle states
+  const llmBatchToggle = document.getElementById('llmBatchToggle');
+  const llmAnalysisToggle = document.getElementById('llmAnalysisToggle');
+  
+  if (llmBatchToggle) {
+    llmBatchToggle.checked = settings.useLLMForBatch === true;
+    
+    // Add event listener for batch toggle
+    llmBatchToggle.addEventListener('change', async (e) => {
+      await chrome.storage.local.set({ useLLMForBatch: e.target.checked });
+      
+      // Show feedback
+      const noteEl = llmBatchToggle.closest('.setting-item').querySelector('.setting-note small');
+      const originalText = noteEl.textContent;
+      
+      if (e.target.checked) {
+        noteEl.textContent = '✅ AI batch scoring enabled! Refresh LinkedIn page to apply.';
+        noteEl.style.color = '#22C55E';
+      } else {
+        noteEl.textContent = '⚪ AI batch scoring disabled. Using local scoring for better performance.';
+        noteEl.style.color = '#6B7280';
+      }
+      
+      // Revert to original text after 3 seconds
+      setTimeout(() => {
+        noteEl.textContent = originalText;
+        noteEl.style.color = '#8B5A3C';
+      }, 3000);
+    });
+  }
+  
+  if (llmAnalysisToggle) {
+    llmAnalysisToggle.checked = settings.useLLMAnalysis !== false; // Default to true
+    
+    // Add event listener for analysis toggle
+    llmAnalysisToggle.addEventListener('change', async (e) => {
+      await chrome.storage.local.set({ useLLMAnalysis: e.target.checked });
+      
+      // Show feedback (no note element for this toggle, so just console log)
+      console.log('LLM Analysis', e.target.checked ? 'enabled' : 'disabled');
+    });
   }
 }
 
