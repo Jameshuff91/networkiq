@@ -131,19 +131,20 @@ USER'S BACKGROUND TO MATCH AGAINST:
 {json.dumps(elements_by_category, indent=2)}
 
 INSTRUCTIONS:
-1. Find ALL connections between the profile and user's background
-2. Look for direct mentions AND indirect/implied connections
-3. Recognize variations, abbreviations, and informal references
-4. For military connections, recognize service academies, units, bases, ranks
-5. For companies, recognize subsidiaries, divisions, and former names
-6. For education, recognize abbreviations (USAFA, MIT, etc.) and informal references
+1. Find connections between the profile and user's background
+2. BE STRICT about what constitutes a match - only match if it's the SAME entity
+3. For military connections, recognize service academies, units, bases, ranks
+4. For companies, recognize subsidiaries, divisions, and former names of the SAME company
+5. For education, ONLY match if it's the SAME institution (e.g., both went to MIT, both went to Stanford)
 
-IMPORTANT MATCHING RULES:
-- "USAFA", "Air Force Academy", "United States Air Force Academy", "Academy" (in military context) all match "air force academy"
-- "Zoomie" or "Academy grad" in military context matches service academies
-- Company variations like "Google", "Alphabet", "Google Cloud" all match
-- Skills can be implied from job descriptions
-- Award the FULL weight for any match, partial matches still get full points
+CRITICAL MATCHING RULES:
+- Education: MUST be the SAME school/university. Stanford ≠ Johns Hopkins, MIT ≠ Harvard, etc.
+- "USAFA", "Air Force Academy", "United States Air Force Academy" all refer to the same academy
+- Company variations like "Google", "Alphabet", "Google Cloud" refer to the same company
+- Different universities are NEVER a match, even if both are prestigious
+- Different companies are NEVER a match, unless one is a subsidiary/division of the other
+- Set confidence to 0.1 or lower if you're not certain it's the SAME entity
+- Award the FULL weight ONLY for definite matches of the SAME entity
 
 Return ONLY valid JSON in this format:
 {{
@@ -166,7 +167,7 @@ Return ONLY valid JSON in this format:
   "recommendation": "one sentence on why to connect"
 }}
 
-Be generous with matching - if there's any reasonable connection, include it."""
+REMINDER: Only match the SAME institutions/companies. Stanford and Johns Hopkins are DIFFERENT universities - NOT a match!"""
 
         return prompt
 
