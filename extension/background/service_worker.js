@@ -582,14 +582,11 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
   }
 });
 
-// Periodic auth check (every 60 minutes)
-chrome.alarms.create('checkAuth', { periodInMinutes: 60 });
-
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'checkAuth') {
-    checkAuthStatus();
-  }
-});
+// Periodic auth check using setInterval instead of alarms API
+// Check every 60 minutes (3600000 ms)
+setInterval(() => {
+  checkAuthStatus();
+}, 3600000);
 
 // Initialize on startup
 checkAuthStatus();
