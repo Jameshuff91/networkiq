@@ -1179,9 +1179,15 @@ class NetworkIQUI {
             <div class="niq-quickview-section">
               <h4>🔗 Connections</h4>
               <div class="niq-quickview-matches">
-                ${scoreData.matches.map(m => 
-                  `<span class="niq-match-chip">${m.text} (+${m.weight})</span>`
-                ).join('')}
+                ${scoreData.matches
+                  .filter(m => m && (m.text || m.matches_element || m.display || m.value))
+                  .map(m => {
+                    // Extract the display text from various possible formats
+                    const text = m.text || m.matches_element || m.display || m.value || 'Unknown';
+                    const points = m.weight || m.points || 0;
+                    return `<span class="niq-match-chip">${text} (+${points})</span>`;
+                  })
+                  .join('')}
               </div>
             </div>
           ` : ''}
