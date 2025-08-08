@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate NetworkIQ Icons</title>
+</head>
+<body>
+    <h1>NetworkIQ Icon Generator</h1>
+    <p>Right-click and save each icon:</p>
+    
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <div>
+            <h3>16x16</h3>
+            <canvas id="icon16" width="16" height="16"></canvas>
+        </div>
+        <div>
+            <h3>32x32</h3>
+            <canvas id="icon32" width="32" height="32"></canvas>
+        </div>
+        <div>
+            <h3>48x48</h3>
+            <canvas id="icon48" width="48" height="48"></canvas>
+        </div>
+        <div>
+            <h3>128x128</h3>
+            <canvas id="icon128" width="128" height="128"></canvas>
+        </div>
+    </div>
+
+    <script>
+        function createIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#5E5ADB');
+            gradient.addColorStop(1, '#7B78FF');
+            
+            // Draw rounded rectangle
+            ctx.fillStyle = gradient;
+            const radius = size * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(radius, 0);
+            ctx.lineTo(size - radius, 0);
+            ctx.quadraticCurveTo(size, 0, size, radius);
+            ctx.lineTo(size, size - radius);
+            ctx.quadraticCurveTo(size, size, size - radius, size);
+            ctx.lineTo(radius, size);
+            ctx.quadraticCurveTo(0, size, 0, size - radius);
+            ctx.lineTo(0, radius);
+            ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.fill();
+            
+            // Draw "N" letter
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('N', size / 2, size / 2);
+            
+            // Convert to PNG and download
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `icon${size}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        // Generate all icons
+        setTimeout(() => createIcon('icon16', 16), 100);
+        setTimeout(() => createIcon('icon32', 32), 200);
+        setTimeout(() => createIcon('icon48', 48), 300);
+        setTimeout(() => createIcon('icon128', 128), 400);
+    </script>
+</body>
+</html>
