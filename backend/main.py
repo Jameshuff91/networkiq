@@ -405,19 +405,9 @@ async def score_profile(
     daily_usage["scores"] += 1
     save_db("usage", usage_db)  # Persist usage
 
-    # Store profile
+    # Don't store LinkedIn profile data to comply with TOS
+    # Only return the calculated score, no persistence
     profile_id = f"profile_{len(profiles_db) + 1}"
-    profiles_db[profile_id] = {
-        "id": profile_id,
-        "user_id": user_id,
-        "url": profile.linkedin_url,
-        "data": profile.profile_data,
-        "score": score,
-        "breakdown": breakdown,
-        "connections": connections,
-        "created_at": datetime.now(UTC).isoformat(),
-    }
-    save_db("profiles", profiles_db)  # Persist profiles
 
     return {
         "profile_id": profile_id,
@@ -502,23 +492,9 @@ async def analyze_profile_llm(
         daily_usage["scores"] += 1
         save_db("usage", usage_db)
 
-        # Store profile with enhanced analysis
+        # Don't store LinkedIn profile data to comply with TOS
+        # Only return the analysis, no persistence
         profile_id = f"profile_{len(profiles_db) + 1}"
-        profiles_db[profile_id] = {
-            "id": profile_id,
-            "user_id": user_id,
-            "url": profile.linkedin_url,
-            "data": profile.profile_data,
-            "score": analysis["score"],
-            "tier": analysis["tier"],
-            "matches": analysis["matches"],
-            "insights": analysis.get("insights", []),
-            "hidden_connections": analysis.get("hidden_connections", []),
-            "recommendation": analysis.get("recommendation", ""),
-            "message": message,
-            "created_at": datetime.now(UTC).isoformat(),
-        }
-        save_db("profiles", profiles_db)
 
         return {
             "profile_id": profile_id,
@@ -728,16 +704,9 @@ async def generate_message(
         if message_data.calendly_link:
             message_text = f"{message_text}\n\nFeel free to book time directly: {message_data.calendly_link}"
 
-        # Store message
+        # Don't store LinkedIn profile data to comply with TOS
+        # Only track usage count, not the actual data
         message_id = f"msg_{len(messages_db) + 1}"
-        messages_db[message_id] = {
-            "id": message_id,
-            "user_id": current_user["id"],
-            "profile_data": profile,
-            "message": message_text,
-            "created_at": datetime.now(UTC).isoformat(),
-        }
-        save_db("messages", messages_db)  # Persist messages
 
         return {
             "message_id": message_id,

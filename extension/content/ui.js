@@ -96,28 +96,51 @@ class NetworkIQUI {
   async injectProfileScore() {
     console.log('NetworkIQ: injectProfileScore started');
     try {
-      // Check daily limit for free tier
-      // TODO: Re-enable for production
-      /*
-      if (this.userTier === 'free' && this.dailyUsage >= 10) {
-        console.log('NetworkIQ: Daily limit reached for free tier (usage:', this.dailyUsage, ')');
-        console.log('NetworkIQ: User tier:', this.userTier);
-        // Check if we've already shown the upgrade prompt today
-        const today = new Date().toDateString();
-        chrome.storage.local.get(['lastUpgradePromptDate'], (result) => {
-          if (result.lastUpgradePromptDate !== today) {
-            this.showUpgradePrompt();
-            chrome.storage.local.set({ lastUpgradePromptDate: today });
-          }
+      // Rate limiting configuration
+      const MIN_DELAY_MS = 2000; // Minimum 2 seconds before parsing
+      const MAX_DELAY_MS = 5000; // Maximum 5 seconds before parsing
+      
+      // Check daily usage before proceeding
+      const storage = await chrome.storage.local.get(['dailyScoredProfiles', 'lastResetDate']);
+      const today = new Date().toDateString();
+      let dailyScoredProfiles = storage.dailyScoredProfiles || 0;
+      
+      if (storage.lastResetDate !== today) {
+        dailyScoredProfiles = 0;
+        await chrome.storage.local.set({ 
+          dailyScoredProfiles: 0,
+          lastResetDate: today
         });
+      }
+      
+      // Check daily limit (30 for free, 100 for pro)
+      const maxDaily = this.userTier === 'pro' ? 100 : 30;
+      if (dailyScoredProfiles >= maxDaily) {
+        console.log(`NetworkIQ: Daily limit reached (${maxDaily} profiles)`);
+        this.showToast(`Daily scoring limit reached (${maxDaily} profiles). Upgrade to Pro for more.`);
+        
+        // Check if we should show upgrade prompt
+        const lastPrompt = await chrome.storage.local.get(['lastUpgradePromptDate']);
+        if (lastPrompt.lastUpgradePromptDate !== today && this.userTier === 'free') {
+          this.showUpgradePrompt();
+          await chrome.storage.local.set({ lastUpgradePromptDate: today });
+        }
         return;
       }
-      */
       
-      console.log('NetworkIQ: Daily usage:', this.dailyUsage, '/ 10 (limits disabled for dev)');
+      console.log(`NetworkIQ: Daily usage: ${dailyScoredProfiles}/${maxDaily}`);
 
-      // Wait a bit for the page to fully load
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Add human-like random delay before parsing
+      const randomDelay = Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS + 1)) + MIN_DELAY_MS;
+      console.log(`NetworkIQ: Waiting ${randomDelay}ms before parsing profile...`);
+      await new Promise(resolve => setTimeout(resolve, randomDelay));
+      
+      // Simulate human scrolling behavior
+      window.scrollTo({
+        top: Math.random() * 500,
+        behavior: 'smooth'
+      });
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Parse profile
       console.log('NetworkIQ: Parsing profile...');
@@ -224,11 +247,10 @@ class NetworkIQUI {
       await this.createMessageBox(profile, scoreData);
       this.createFloatingWidget(scoreData);
 
-      // Track usage for free tier
-      if (this.userTier === 'free') {
-        this.dailyUsage++;
-        chrome.storage.sync.set({ dailyUsage: this.dailyUsage });
-      }
+      // Update daily usage counter
+      await chrome.storage.local.set({ 
+        dailyScoredProfiles: dailyScoredProfiles + 1 
+      });
 
       // Send analytics
       this.trackEvent('profile_scored', {
@@ -586,114 +608,156 @@ class NetworkIQUI {
   }
 
   async injectSearchScores() {
-    // Enhanced batch scoring for search results
-    console.log('NetworkIQ: Starting batch scoring for search results...');
-    console.log('NetworkIQ: Current URL:', window.location.href);
+    // Throttled scoring for search results - compliant version
+    console.log('NetworkIQ: Starting throttled scoring for visible profiles...');
     
-    // Check if we should use LLM for batch scoring (default: no for performance)
-    // To enable batch LLM processing, run in console: chrome.storage.local.set({ useLLMForBatch: true })
-    const settings = await chrome.storage.local.get(['useLLMForBatch', 'useLLMAnalysis']);
-    const useLLMForBatch = settings.useLLMForBatch === true;
-    const useLLMAnalysis = settings.useLLMAnalysis !== false;
+    // Rate limiting configuration
+    const MAX_PROFILES_PER_PAGE = 5; // Only score first 5 visible profiles
+    const MIN_DELAY_MS = 3000; // Minimum 3 seconds between profiles
+    const MAX_DELAY_MS = 7000; // Maximum 7 seconds between profiles
     
-    // Debug: Check what elements exist on the page
-    const debugSelectors = [
-      '.entity-result__item',
-      '[data-view-name="search-entity-result-universal-template"]',
-      '.reusable-search__result-container',
-      'a[href*="/in/"]'
-    ];
+    // Check daily usage before proceeding
+    const storage = await chrome.storage.local.get(['dailyScoredProfiles', 'lastResetDate']);
+    const today = new Date().toDateString();
+    let dailyScoredProfiles = storage.dailyScoredProfiles || 0;
     
-    debugSelectors.forEach(selector => {
-      const count = document.querySelectorAll(selector).length;
-      if (count > 0) {
-        console.log(`NetworkIQ: Found ${count} elements with selector: ${selector}`);
-      }
-    });
+    if (storage.lastResetDate !== today) {
+      dailyScoredProfiles = 0;
+      await chrome.storage.local.set({ 
+        dailyScoredProfiles: 0,
+        lastResetDate: today
+      });
+    }
     
-    // Get all profiles from search results
-    const profiles = LinkedInParser.getSearchResultProfiles();
-    console.log(`NetworkIQ: Parser found ${profiles.length} profiles`);
-    
-    if (profiles.length === 0) {
-      console.log('NetworkIQ: No profiles found on search page');
-      // Try alternative approach - just look for profile links
-      const profileLinks = document.querySelectorAll('a[href*="/in/"]');
-      console.log(`NetworkIQ: Found ${profileLinks.length} profile links on page`);
+    // Check daily limit (30 for free, 100 for pro)
+    const maxDaily = this.userTier === 'pro' ? 100 : 30;
+    if (dailyScoredProfiles >= maxDaily) {
+      console.log(`NetworkIQ: Daily limit reached (${maxDaily} profiles)`);
+      this.showToast(`Daily scoring limit reached (${maxDaily} profiles). Upgrade to Pro for more.`);
       return;
     }
     
-    console.log(`NetworkIQ: Found ${profiles.length} profiles to score`);
+    // Get only visible profiles in viewport
+    const allProfiles = LinkedInParser.getSearchResultProfiles();
+    const visibleProfiles = allProfiles.slice(0, MAX_PROFILES_PER_PAGE);
+    
+    console.log(`NetworkIQ: Found ${visibleProfiles.length} visible profiles (max ${MAX_PROFILES_PER_PAGE})`);
+    
+    if (visibleProfiles.length === 0) {
+      console.log('NetworkIQ: No visible profiles found');
+      return;
+    }
     
     // Create summary bar if not exists
     this.createSummaryBar();
     
-    // Score all profiles - use for...of loop to handle async properly
+    // Helper function to add human-like random delay
+    const randomDelay = (min, max) => {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    };
+    
+    // Helper function to simulate human scrolling
+    const simulateScroll = async (element) => {
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await new Promise(resolve => setTimeout(resolve, randomDelay(500, 1500)));
+      }
+    };
+    
+    // Score profiles sequentially with delays
     const scoredProfiles = [];
     let highScoreCount = 0;
     let mediumScoreCount = 0;
     let lowScoreCount = 0;
+    let profilesScored = 0;
     
-    console.log(`NetworkIQ: Starting to score ${profiles.length} profiles${useLLMForBatch ? ' with LLM' : ' locally'}`);
+    console.log(`NetworkIQ: Will score up to ${visibleProfiles.length} visible profiles with delays`);
     
-    // Prepare profile data for scoring
-    const profilesData = profiles.map(profile => ({
-      url: profile.url,
-      name: profile.name,
-      title: profile.title,
-      company: profile.company,
-      location: profile.location,
-      // Map fullText to both 'text' and 'headline' for better matching
-      text: profile.fullText || `${profile.name} ${profile.title} ${profile.company} ${profile.location} ${profile.summary}`.toLowerCase(),
-      headline: profile.title || '', // Add headline field that scorer expects
-      about: profile.summary || '', // Add about field
-      experience: profile.company || '', // Map company to experience
-      education: '', // Will be extracted from fullText if present
-      skills: [], // Will be extracted from fullText if present
-      connectionDegree: '', // Not available in search results
-      profilePicture: profile.imageUrl || '',
-      timestamp: new Date().toISOString()
-    }));
-    
-    // Debug: log what we're scoring
-    console.log('NetworkIQ: Scoring profile data sample:', profilesData.slice(0, 2));
-    console.log('NetworkIQ: Scorer search elements:', this.scorer.searchElements);
-    
-    // Check cache first for batch analysis - do all checks in parallel
-    console.log('NetworkIQ: Checking cache for profiles in parallel...');
-    const cacheChecks = profiles.map(async (profile, i) => {
-      try {
-        const cachedResult = await window.profileAnalysisCache.get(profile.url, this.scorer.searchElements);
-        return {
-          profile,
-          profileData: profilesData[i],
-          cachedResult,
-          index: i
-        };
-      } catch (error) {
-        console.warn('NetworkIQ: Cache error for profile', profile.name, error);
-        return {
-          profile,
-          profileData: profilesData[i],
-          cachedResult: null,
-          index: i
-        };
+    // Process profiles one by one with delays
+    for (let i = 0; i < visibleProfiles.length; i++) {
+      const profile = visibleProfiles[i];
+      
+      // Check if we've hit daily limit
+      if (dailyScoredProfiles + profilesScored >= maxDaily) {
+        console.log('NetworkIQ: Daily limit reached, stopping');
+        break;
       }
+      
+      // Simulate human scrolling to the profile
+      const profileElement = profile.element || document.querySelector(`a[href="${profile.url}"]`);
+      await simulateScroll(profileElement);
+      
+      // Prepare profile data for scoring
+      const profileData = {
+        url: profile.url,
+        name: profile.name,
+        title: profile.title,
+        company: profile.company,
+        location: profile.location,
+        text: profile.fullText || `${profile.name} ${profile.title} ${profile.company} ${profile.location} ${profile.summary}`.toLowerCase(),
+        headline: profile.title || '',
+        about: profile.summary || '',
+        experience: profile.company || '',
+        education: '',
+        skills: [],
+        connectionDegree: '',
+        profilePicture: profile.imageUrl || '',
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log(`NetworkIQ: Scoring profile ${i+1}/${visibleProfiles.length}: ${profile.name}`);
+      
+      // Score locally using the scorer
+      const scoreResult = this.scorer.calculateScore(profileData);
+      
+      // Store scored profile
+      scoredProfiles.push({
+        ...profile,
+        score: scoreResult.score,
+        tier: scoreResult.tier,
+        matches: scoreResult.connections || []
+      });
+      
+      // Count by tier
+      if (scoreResult.tier === 'high') highScoreCount++;
+      else if (scoreResult.tier === 'medium') mediumScoreCount++;
+      else lowScoreCount++;
+      
+      // Add visual badge
+      this.addScoreBadgeToCard(profile, scoreResult);
+      
+      profilesScored++;
+      
+      // Add human-like delay before next profile (except for last one)
+      if (i < visibleProfiles.length - 1) {
+        const delay = randomDelay(MIN_DELAY_MS, MAX_DELAY_MS);
+        console.log(`NetworkIQ: Waiting ${delay}ms before next profile...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    // Update daily usage
+    await chrome.storage.local.set({ 
+      dailyScoredProfiles: dailyScoredProfiles + profilesScored 
     });
     
-    // Wait for all cache checks to complete in parallel
-    const cacheResults = await Promise.all(cacheChecks);
+    // Store scored profiles for filtering/sorting
+    this.scoredProfiles = scoredProfiles;
     
-    // Separate cached from uncached
-    const cachedResults = [];
-    const uncachedProfiles = [];
-    const uncachedProfilesData = [];
+    // Update summary bar
+    this.updateSummaryBar(scoredProfiles, highScoreCount, mediumScoreCount, lowScoreCount);
     
-    cacheResults.forEach(({ profile, profileData, cachedResult }) => {
-      if (cachedResult) {
-        console.log(`NetworkIQ: Cache hit for ${profile.name}`);
-        cachedResults.push({
-          profile,
+    console.log(`NetworkIQ: Scoring complete. Scored ${profilesScored} profiles. High: ${highScoreCount}, Medium: ${mediumScoreCount}, Low: ${lowScoreCount}`);
+  }
+  
+  createSummaryBar() {
+    // Remove existing summary bar
+    const existing = document.querySelector('.networkiq-summary-bar');
+    if (existing) existing.remove();
+    
+    // Create summary bar
+    const summaryBar = document.createElement('div');
+    summaryBar.className = 'networkiq-summary-bar';
           profileData,
           result: cachedResult,
           cached: true
@@ -1076,9 +1140,6 @@ class NetworkIQUI {
           <button class="niq-action-btn" id="niq-filter-btn" title="Filter results">
             🔍 Filter
           </button>
-          <button class="niq-action-btn" id="niq-export-btn" title="Export to CSV">
-            📊 Export
-          </button>
         </div>
       </div>
     `;
@@ -1246,11 +1307,6 @@ ${this.scorer.generateMessage(profile, scoreData)}
     document.getElementById('niq-filter-btn')?.addEventListener('click', () => {
       this.showFilterModal();
     });
-    
-    // Export button
-    document.getElementById('niq-export-btn')?.addEventListener('click', () => {
-      this.exportToCSV();
-    });
   }
   
   sortSearchResults() {
@@ -1344,42 +1400,6 @@ ${this.scorer.generateMessage(profile, scoreData)}
     this.showToast(`Filter applied. ${hiddenCount} profiles hidden.`);
   }
   
-  exportToCSV() {
-    if (!this.scoredProfiles || this.scoredProfiles.length === 0) {
-      this.showToast('No profiles to export');
-      return;
-    }
-    
-    // Create CSV content
-    const headers = ['Name', 'Score', 'Tier', 'Title', 'Company', 'Location', 'Matches', 'Profile URL'];
-    const rows = this.scoredProfiles.map(p => [
-      p.name,
-      p.score,
-      p.tier,
-      p.title || '',
-      p.company || '',
-      p.location || '',
-      (p.matches || []).map(m => m.text).join('; '),
-      p.url
-    ]);
-    
-    // Convert to CSV format
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
-    
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `networkiq-scores-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    
-    URL.revokeObjectURL(url);
-    this.showToast('Scores exported to CSV');
-  }
   
   addHoverTooltips() {
     // Add tooltips on hover for score badges

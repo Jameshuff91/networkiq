@@ -1,16 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "NetworkIQ - LinkedIn Intelligence",
+  "name": "NetworkIQ - AI Networking Assistant",
   "version": "1.0.0",
-  "description": "See who's worth connecting with on LinkedIn. AI-powered networking intelligence.",
+  "description": "AI-powered networking assistant that helps you find meaningful connections based on your background.",
   "permissions": [
-    "storage",
-    "tabs",
-    "alarms"
+    "storage"
   ],
   "host_permissions": [
-    "https://www.linkedin.com/*",
-    "https://linkedin.com/*"
+    "https://www.linkedin.com/*"
   ],
   "background": {
     "service_worker": "background/service_worker.js"
@@ -18,8 +15,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.linkedin.com/*",
-        "https://*.linkedin.com/*"
+        "https://www.linkedin.com/*"
       ],
       "js": [
         "content/parser.js",
@@ -28,7 +24,7 @@
         "content/ui.js"
       ],
       "css": ["content/styles.css"],
-      "run_at": "document_end",
+      "run_at": "document_idle",
       "all_frames": false
     }
   ],
