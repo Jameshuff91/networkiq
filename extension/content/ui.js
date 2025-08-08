@@ -1811,6 +1811,15 @@ ${this.scorer.generateMessage(profile, scoreData)}
 
 // Listen for messages from popup (cache clearing and auth changes)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'scoreProfile') {
+    // Manually trigger profile scoring
+    console.log('NetworkIQ: Manual score requested from popup');
+    if (window.networkIQUI) {
+      window.networkIQUI.injectProfileScore();
+    }
+    return true;
+  }
+  
   if (request.action === 'authStateChanged') {
     // User just logged in, show the sidebar
     if (request.isAuthenticated) {
@@ -1847,7 +1856,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => new NetworkIQUI());
+  document.addEventListener('DOMContentLoaded', () => {
+    window.networkIQUI = new NetworkIQUI();
+  });
 } else {
-  new NetworkIQUI();
+  window.networkIQUI = new NetworkIQUI();
 }
