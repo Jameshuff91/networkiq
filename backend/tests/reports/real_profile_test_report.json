@@ -1,0 +1,159 @@
+{
+  "timestamp": "2025-08-07T21:56:09.133040",
+  "summary": {
+    "total_tests": 5,
+    "passed": 4,
+    "failed": 1,
+    "false_positives": [],
+    "missed_matches": [
+      {
+        "profile": "Nicholas S. - Scale AI Product",
+        "missed": "Machine Learning"
+      }
+    ],
+    "null_issues": []
+  },
+  "results": [
+    {
+      "profile": "Meghana R. - Anthropic GTM",
+      "score": 75,
+      "tier": "high",
+      "matches": [
+        {
+          "category": "education",
+          "found_in_profile": "Stanford University",
+          "matches_element": "Stanford University",
+          "points": 45,
+          "confidence": 0.8,
+          "reasoning": "The profile explicitly mentions 'Stanford University'."
+        },
+        {
+          "category": "location",
+          "found_in_profile": "San Francisco Bay Area",
+          "matches_element": "Bay Area, CA",
+          "points": 30,
+          "confidence": 0.7,
+          "reasoning": "The profile mentions 'San Francisco Bay Area', which strongly implies a location in the Bay Area."
+        }
+      ],
+      "time": 2.439129114151001,
+      "validation": {
+        "passed": true,
+        "issues": [
+          "Tier mismatch: expected low, got high"
+        ]
+      },
+      "passed": true
+    },
+    {
+      "profile": "Neerav Kingsland - Yale Law/Anthropic",
+      "score": 30,
+      "tier": "medium",
+      "matches": [
+        {
+          "category": "location",
+          "found_in_profile": "San Francisco Bay Area",
+          "matches_element": "Bay Area, CA",
+          "points": 30,
+          "confidence": 0.8,
+          "reasoning": "Exact match for location in user's background."
+        }
+      ],
+      "time": 2.4490232467651367,
+      "validation": {
+        "passed": true,
+        "issues": [
+          "Tier mismatch: expected low, got medium"
+        ]
+      },
+      "passed": true
+    },
+    {
+      "profile": "Nicholas S. - Scale AI Product",
+      "score": 50,
+      "tier": "high",
+      "matches": [
+        {
+          "category": "skill",
+          "found_in_profile": "machine learning",
+          "matches_element": "machine learning",
+          "points": 20,
+          "confidence": 0.8,
+          "reasoning": "The profile explicitly mentions 'machine learning' which is a skill listed in the user's background."
+        },
+        {
+          "category": "location",
+          "found_in_profile": "San Francisco CA",
+          "matches_element": "san francisco",
+          "points": 30,
+          "confidence": 0.7,
+          "reasoning": "The profile lists San Francisco, CA, which aligns with the user's background location."
+        }
+      ],
+      "time": 2.217787742614746,
+      "validation": {
+        "passed": false,
+        "issues": [
+          "Missing expected match: Machine Learning",
+          "Tier mismatch: expected low, got high"
+        ]
+      },
+      "passed": false
+    },
+    {
+      "profile": "Johns Hopkins Alumni Test",
+      "score": 45,
+      "tier": "high",
+      "matches": [
+        {
+          "category": "education",
+          "found_in_profile": "Johns Hopkins",
+          "matches_element": "Johns Hopkins University",
+          "points": 45,
+          "confidence": 0.8,
+          "reasoning": "The profile explicitly mentions 'Johns Hopkins' which directly matches the user's education background."
+        }
+      ],
+      "time": 1.6372108459472656,
+      "validation": {
+        "passed": true,
+        "issues": []
+      },
+      "passed": true
+    },
+    {
+      "profile": "Air Force Academy Graduate",
+      "score": 85,
+      "tier": "high",
+      "matches": [
+        {
+          "category": "education",
+          "found_in_profile": "USAFA graduate",
+          "matches_element": "United States Air Force Academy",
+          "points": 45,
+          "confidence": 0.8,
+          "reasoning": "The profile explicitly mentions 'USAFA graduate', which directly matches the user's education background."
+        },
+        {
+          "category": "military",
+          "found_in_profile": "former Air Force officer",
+          "matches_element": "U.S. Air Force",
+          "points": 40,
+          "confidence": 0.7,
+          "reasoning": "The profile clearly states 'former Air Force officer', aligning with the user's military experience."
+        }
+      ],
+      "time": 2.2596771717071533,
+      "validation": {
+        "passed": true,
+        "issues": []
+      },
+      "passed": true
+    }
+  ],
+  "performance": {
+    "avg_time": 2.2005656242370604,
+    "max_time": 2.4490232467651367,
+    "min_time": 1.6372108459472656
+  }
+}

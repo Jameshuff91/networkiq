@@ -13,7 +13,7 @@ import json
 import pickle
 from pathlib import Path
 from dotenv import load_dotenv
-import openai
+# import openai  # Deprecated - using Gemini instead
 from pydantic import BaseModel, EmailStr
 import jwt
 from passlib.context import CryptContext
@@ -52,8 +52,9 @@ JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
 
 # Initialize services
 stripe.api_key = STRIPE_SECRET_KEY
-if OPENAI_API_KEY and not OPENAI_API_KEY.startswith("sk-test"):
-    openai.api_key = OPENAI_API_KEY
+# OpenAI deprecated - using Gemini for all LLM tasks
+# if OPENAI_API_KEY and not OPENAI_API_KEY.startswith("sk-test"):
+#     openai.api_key = OPENAI_API_KEY
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # In-memory storage with persistence
@@ -666,47 +667,57 @@ async def generate_message(
 
         daily_usage["messages"] += 1
 
-    # Generate message (use OpenAI if available, otherwise use templates)
+    # Generate message using Gemini or fallback to templates
     try:
         profile = message_data.profile_data
-        connections = message_data.score_data.get("connections", [])
+        score_data = message_data.score_data
+        
+        # Get user's search elements for context
+        user_id = current_user["id"]
+        user = users_db.get(user_id, {})
+        search_elements = user.get("search_elements", [])
+        if not search_elements:
+            # Try getting from background object
+            background = user.get("background", {})
+            search_elements = background.get("search_elements", [])
 
-        # Check if OpenAI key is valid
-        if OPENAI_API_KEY and not OPENAI_API_KEY.startswith("sk-test"):
-            prompt = f"""
-            Create a personalized LinkedIn connection request message.
-            
-            Profile: {profile.get('name')} at {profile.get('company')}
-            Title: {profile.get('title')}
-            Shared connections: {', '.join(connections)}
-            
-            Write a brief, warm message (under 280 characters) that references shared background.
-            Be authentic and specific. Don't be salesy.
-            """
-
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert at writing personalized LinkedIn messages.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=100,
-                temperature=0.7,
-            )
-
-            message_text = response.choices[0].message.content.strip()
+        # Use Gemini if available
+        if GEMINI_API_KEY:
+            try:
+                # Initialize the ProfileAnalyzer
+                from profile_analyzer import ProfileAnalyzer
+                analyzer = ProfileAnalyzer(api_key=GEMINI_API_KEY)
+                
+                # Generate enhanced message with user context
+                message_text = analyzer.generate_enhanced_message(
+                    profile=profile,
+                    analysis=score_data,  # Contains matches, insights, etc.
+                    user_background=search_elements
+                )
+            except Exception as gemini_error:
+                print(f"Gemini message generation failed: {gemini_error}")
+                # Fall back to templates
+                raise gemini_error
         else:
-            # Use template-based messages for testing
-            name = profile.get("name", "there")
+            # Use template-based messages as fallback
+            name = profile.get("name", "there").split()[0] if profile.get("name") else "there"
             company = profile.get("company", "your company")
-
+            matches = score_data.get("matches", [])
+            
+            # Extract match text from complex objects
+            match_texts = []
+            for match in matches[:2]:  # Use top 2 matches
+                if isinstance(match, str):
+                    match_texts.append(match)
+                elif isinstance(match, dict):
+                    match_texts.append(match.get("matches_element", match.get("text", "")))
+            
+            connection_point = match_texts[0] if match_texts else "shared interests"
+            
             templates = [
-                f"Hi {name}, I noticed we both {connections[0] if connections else 'share similar backgrounds'}. Would love to connect and exchange insights about {company}.",
-                f"Hi {name}, your experience at {company} caught my attention. As someone with {connections[0] if connections else 'shared interests'}, I'd value connecting with you.",
-                f"Hi {name}, I see we have {connections[0] if connections else 'common ground'}. Your work at {company} aligns with my interests. Let's connect!",
+                f"Hi {name}, I noticed we both have experience with {connection_point}. Would love to connect and exchange insights about {company}.",
+                f"Hi {name}, your experience at {company} caught my attention. As someone with background in {connection_point}, I'd value connecting with you.",
+                f"Hi {name}, I see we share {connection_point}. Your work at {company} aligns with my interests. Let's connect!",
             ]
 
             # Pick template based on profile hash (consistent but varied)

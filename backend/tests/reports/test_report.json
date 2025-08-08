@@ -1,0 +1,519 @@
+{
+  "timestamp": "2025-08-07T21:52:08.784556",
+  "performance_metrics": {
+    "resume_parse_time": 1.7517039775848389,
+    "batch_time": 13.40994906425476,
+    "avg_profile_time": 2.681989812850952
+  },
+  "results": [
+    {
+      "profile": "Test Profile 1 - Johns Hopkins Alumni",
+      "score": 20,
+      "tier": "medium",
+      "matches": 2,
+      "time": 2.0729880332946777,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 20,
+        "tier": "medium",
+        "matches": [
+          {
+            "category": "education",
+            "found_in_profile": "Johns Hopkins University class of 2015",
+            "matches_element": "Johns Hopkins University",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly mentions graduating from Johns Hopkins University in 2015."
+          },
+          {
+            "category": "company",
+            "found_in_profile": "Software Engineer at Google",
+            "matches_element": "Google",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile clearly states that the individual is a Software Engineer at Google."
+          }
+        ],
+        "insights": [
+          "John Smith's background aligns perfectly with the provided data, showing a strong connection through both education and current employment."
+        ],
+        "hidden_connections": [],
+        "recommendation": "Connect with John Smith due to the clear alignment of his professional experience at Google and education at Johns Hopkins University with your provided background."
+      }
+    },
+    {
+      "profile": "Test Profile 2 - Air Force Academy",
+      "score": 40,
+      "tier": "high",
+      "matches": 3,
+      "time": 2.8711230754852295,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 40,
+        "tier": "high",
+        "matches": [
+          {
+            "category": "military",
+            "found_in_profile": "Air Force veteran",
+            "matches_element": "Military Service",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly mentions being an Air Force veteran."
+          },
+          {
+            "category": "education",
+            "found_in_profile": "USAFA graduate",
+            "matches_element": "Education",
+            "points": 15,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly mentions graduating from USAFA (United States Air Force Academy)."
+          },
+          {
+            "category": "company",
+            "found_in_profile": "Product Manager at Meta",
+            "matches_element": "Current Employment",
+            "points": 15,
+            "confidence": 0.8,
+            "reasoning": "The profile clearly states that Sarah Johnson is a Product Manager at Meta."
+          }
+        ],
+        "insights": [
+          "Sarah's background as an Air Force officer and her current role as a Product Manager at Meta suggests a strong combination of leadership, strategic thinking, and technical skills.  This makes her a valuable potential connection for networking and career advancement."
+        ],
+        "hidden_connections": [
+          "Military connection",
+          "Shared company",
+          "Similar region"
+        ],
+        "recommendation": "Connect with Sarah to learn more about her transition from military service to a successful tech career at Meta, and explore potential collaborations."
+      }
+    },
+    {
+      "profile": "Test Profile 3 - No Match",
+      "score": 15,
+      "tier": "low",
+      "matches": 2,
+      "time": 2.253307819366455,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 15,
+        "tier": "low",
+        "matches": [
+          {
+            "category": "company",
+            "found_in_profile": "Goldman Sachs",
+            "matches_element": "Goldman Sachs",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly states 'Investment Banker at Goldman Sachs'."
+          },
+          {
+            "category": "education",
+            "found_in_profile": "Harvard MBA",
+            "matches_element": "Harvard University",
+            "points": 5,
+            "confidence": 0.7,
+            "reasoning": "The profile mentions 'Harvard MBA', strongly implying graduation from Harvard University's MBA program."
+          }
+        ],
+        "insights": [
+          "Michael Chen's experience at Goldman Sachs and Harvard MBA suggest a strong background in finance and a high-potential career trajectory in investment banking, particularly within the tech sector given his stated focus on tech M&A."
+        ],
+        "hidden_connections": [
+          "Shared company",
+          "Industry overlap"
+        ],
+        "recommendation": "Connecting with Michael Chen could provide valuable insights into the tech M&A landscape and Goldman Sachs's investment strategies."
+      }
+    },
+    {
+      "profile": "Test Profile 4 - Partial Match (Location + Skills)",
+      "score": 53,
+      "tier": "high",
+      "matches": 9,
+      "time": 6.247490167617798,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 53,
+        "tier": "high",
+        "matches": [
+          {
+            "category": "education",
+            "found_in_profile": "Stanford",
+            "matches_element": "Stanford University",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly mentions 'Stanford',  a direct match to Stanford University."
+          },
+          {
+            "category": "company",
+            "found_in_profile": "OpenAI",
+            "matches_element": "OpenAI",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly states that Emily Rodriguez is an ML Engineer at OpenAI."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "machine learning",
+            "matches_element": "Machine Learning",
+            "points": 5,
+            "confidence": 0.7,
+            "reasoning": "The profile mentions 'machine learning' as part of the headline and searchable text, indicating expertise in this field."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "NLP",
+            "matches_element": "Natural Language Processing",
+            "points": 5,
+            "confidence": 0.7,
+            "reasoning": "The 'About' section explicitly mentions a focus on NLP (Natural Language Processing)."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "computer vision",
+            "matches_element": "Computer Vision",
+            "points": 5,
+            "confidence": 0.7,
+            "reasoning": "The 'About' section explicitly mentions a focus on computer vision."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "deep learning",
+            "matches_element": "Deep Learning",
+            "points": 5,
+            "confidence": 0.7,
+            "reasoning": "The searchable text explicitly mentions 'deep learning'."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "Python",
+            "matches_element": "Python",
+            "points": 5,
+            "confidence": 0.7,
+            "reasoning": "The searchable text explicitly mentions 'Python', a common programming language in ML."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "TensorFlow",
+            "matches_element": "TensorFlow",
+            "points": 5,
+            "confidence": 0.7,
+            "reasoning": "The searchable text explicitly mentions 'TensorFlow', a popular ML library."
+          },
+          {
+            "category": "keyword",
+            "found_in_profile": "artificial intelligence",
+            "matches_element": "Artificial Intelligence",
+            "points": 3,
+            "confidence": 0.6,
+            "reasoning": "The searchable text mentions 'artificial intelligence', aligning with the ML Engineer role."
+          }
+        ],
+        "insights": [
+          "Emily Rodriguez's profile demonstrates a strong background in machine learning, specifically in NLP and computer vision, and her experience at OpenAI suggests significant expertise in the field.  This makes her a valuable connection for anyone working in AI or related fields."
+        ],
+        "hidden_connections": [
+          "Same university",
+          "Shared company",
+          "Common skillset"
+        ],
+        "recommendation": "Connect with Emily Rodriguez to explore potential collaborations in AI, particularly in NLP and computer vision, given her experience at OpenAI and Stanford University."
+      }
+    },
+    {
+      "profile": "Test Profile 5 - NULL values test",
+      "score": 0,
+      "tier": "low",
+      "matches": 0,
+      "time": 0.6168651580810547,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 0,
+        "tier": "low",
+        "matches": [],
+        "insights": [],
+        "hidden_connections": [],
+        "recommendation": "No specific reason to connect based on the provided information."
+      }
+    },
+    {
+      "profile": "Test Profile 1 - Johns Hopkins Alumni",
+      "score": 20,
+      "tier": "medium",
+      "matches": 2,
+      "time": 2.1243629455566406,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 20,
+        "tier": "medium",
+        "matches": [
+          {
+            "category": "education",
+            "found_in_profile": "Johns Hopkins University class of 2015",
+            "matches_element": "Johns Hopkins University",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly mentions graduating from Johns Hopkins University in 2015."
+          },
+          {
+            "category": "company",
+            "found_in_profile": "Software Engineer at Google",
+            "matches_element": "Google",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile clearly states that the user is a Software Engineer at Google."
+          }
+        ],
+        "insights": [
+          "John Smith's background in software engineering at Google, combined with his education from Johns Hopkins University, suggests a strong technical skillset and potential for collaboration on relevant projects."
+        ],
+        "hidden_connections": [],
+        "recommendation": "Connect with John Smith to explore potential collaborations in software engineering or machine learning, given his experience at Google and his education at Johns Hopkins University."
+      }
+    },
+    {
+      "profile": "Test Profile 2 - Air Force Academy",
+      "score": 35,
+      "tier": "medium",
+      "matches": 3,
+      "time": 2.7251689434051514,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 35,
+        "tier": "medium",
+        "matches": [
+          {
+            "category": "military",
+            "found_in_profile": "Air Force veteran",
+            "matches_element": "Military Service",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "Explicit mention of Air Force veteran status."
+          },
+          {
+            "category": "education",
+            "found_in_profile": "USAFA graduate",
+            "matches_element": "United States Air Force Academy",
+            "points": 15,
+            "confidence": 0.9,
+            "reasoning": "Explicit mention of graduating from the United States Air Force Academy (USAFA)."
+          },
+          {
+            "category": "company",
+            "found_in_profile": "Product Manager at Meta",
+            "matches_element": "Meta",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "Explicit mention of current employment at Meta."
+          }
+        ],
+        "insights": [
+          "Sarah's background as an Air Force officer and her current role as a Product Manager at Meta demonstrates strong leadership, strategic thinking, and technical skills.  This combination makes her a valuable potential connection for networking and collaboration opportunities."
+        ],
+        "hidden_connections": [
+          "Military connection",
+          "Shared company",
+          "Similar region"
+        ],
+        "recommendation": "Connect with Sarah Johnson to learn from her experience transitioning from a military career to a successful role in the tech industry at Meta."
+      }
+    },
+    {
+      "profile": "Test Profile 3 - No Match",
+      "score": 15,
+      "tier": "low",
+      "matches": 2,
+      "time": 2.1000707149505615,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 15,
+        "tier": "low",
+        "matches": [
+          {
+            "category": "company",
+            "found_in_profile": "Goldman Sachs",
+            "matches_element": "Goldman Sachs",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly states 'Investment Banker at Goldman Sachs'."
+          },
+          {
+            "category": "education",
+            "found_in_profile": "Harvard MBA",
+            "matches_element": "Harvard Business School",
+            "points": 5,
+            "confidence": 0.7,
+            "reasoning": "The profile mentions 'Harvard MBA', which strongly implies graduation from Harvard Business School."
+          }
+        ],
+        "insights": [
+          "Michael's experience at Goldman Sachs and Harvard MBA suggest a strong finance background, potentially aligning with your professional interests in investment banking or related fields."
+        ],
+        "hidden_connections": [
+          "Shared company",
+          "Similar industry"
+        ],
+        "recommendation": "Connecting with Michael could provide valuable insights into the tech M&A landscape within Goldman Sachs and the broader finance industry."
+      }
+    },
+    {
+      "profile": "Test Profile 4 - Partial Match (Location + Skills)",
+      "score": 55,
+      "tier": "high",
+      "matches": 9,
+      "time": 5.745627164840698,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 55,
+        "tier": "high",
+        "matches": [
+          {
+            "category": "company",
+            "found_in_profile": "OpenAI",
+            "matches_element": "OpenAI",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly states that Emily Rodriguez is an ML Engineer at OpenAI."
+          },
+          {
+            "category": "education",
+            "found_in_profile": "Stanford",
+            "matches_element": "Stanford",
+            "points": 10,
+            "confidence": 0.8,
+            "reasoning": "The profile mentions Stanford, indicating educational background."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "machine learning",
+            "matches_element": "Machine Learning",
+            "points": 5,
+            "confidence": 0.8,
+            "reasoning": "The profile explicitly lists 'machine learning' as a skill/area of expertise."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "NLP",
+            "matches_element": "Natural Language Processing",
+            "points": 5,
+            "confidence": 0.8,
+            "reasoning": "The 'About' section mentions a focus on NLP (Natural Language Processing)."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "computer vision",
+            "matches_element": "Computer Vision",
+            "points": 5,
+            "confidence": 0.8,
+            "reasoning": "The 'About' section mentions a focus on computer vision."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "Python",
+            "matches_element": "Python",
+            "points": 5,
+            "confidence": 0.8,
+            "reasoning": "The profile lists Python as a skill."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "TensorFlow",
+            "matches_element": "TensorFlow",
+            "points": 5,
+            "confidence": 0.8,
+            "reasoning": "The profile lists TensorFlow as a skill."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "deep learning",
+            "matches_element": "Deep Learning",
+            "points": 5,
+            "confidence": 0.8,
+            "reasoning": "The profile lists deep learning as a skill."
+          },
+          {
+            "category": "skill",
+            "found_in_profile": "artificial intelligence",
+            "matches_element": "Artificial Intelligence",
+            "points": 5,
+            "confidence": 0.8,
+            "reasoning": "The profile lists artificial intelligence as a skill/area of expertise."
+          }
+        ],
+        "insights": [
+          "Emily Rodriguez's profile reveals a strong background in machine learning, specifically within NLP and computer vision, aligning with OpenAI's research focus.  Her experience at OpenAI and education at Stanford suggest a high level of expertise in the field."
+        ],
+        "hidden_connections": [
+          "Shared company",
+          "Same university",
+          "Common skillset"
+        ],
+        "recommendation": "Connect with Emily to discuss AI advancements, particularly within NLP and computer vision, and explore potential collaborations at OpenAI or within the broader AI community."
+      }
+    },
+    {
+      "profile": "Test Profile 5 - NULL values test",
+      "score": 0,
+      "tier": "low",
+      "matches": 0,
+      "time": 0.7144949436187744,
+      "validation": {
+        "correct_categorization": true,
+        "no_false_positives": true,
+        "issues": []
+      },
+      "analysis": {
+        "score": 0,
+        "tier": "low",
+        "matches": [],
+        "insights": [],
+        "hidden_connections": [],
+        "recommendation": "Given the limited information in the profile, further information about David Kim's background is needed to assess the value of connecting."
+      }
+    }
+  ],
+  "summary": {
+    "total_profiles": 10,
+    "high_tier": 3,
+    "medium_tier": 3,
+    "low_tier": 4,
+    "validation_pass_rate": 1.0
+  }
+}

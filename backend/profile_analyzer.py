@@ -67,10 +67,17 @@ class ProfileAnalyzer:
             # Parse the JSON response
             result = json.loads(response_text)
 
-            # Filter out low-confidence matches (confidence < 0.3)
+            # Filter out low-confidence matches and NULL values
             CONFIDENCE_THRESHOLD = 0.3
             valid_matches = []
             for match in result["matches"]:
+                found_text = match.get("found_in_profile", "").strip().upper()
+                
+                # Force confidence to 0 if NULL or no real match found
+                if found_text in ["NULL", "NONE", "N/A", ""] or "NO DIRECT MENTION" in found_text or "NOTHING STATES" in found_text:
+                    match["confidence"] = 0.0
+                    print(f"Forcing confidence to 0.0 for NULL/empty match: {match.get('matches_element', 'unknown')}")
+                
                 confidence = match.get("confidence", 1.0)  # Default to 1.0 if not specified
                 if confidence >= CONFIDENCE_THRESHOLD:
                     valid_matches.append(match)
@@ -143,8 +150,17 @@ CRITICAL MATCHING RULES:
 - Company variations like "Google", "Alphabet", "Google Cloud" refer to the same company
 - Different universities are NEVER a match, even if both are prestigious
 - Different companies are NEVER a match, unless one is a subsidiary/division of the other
-- Set confidence to 0.1 or lower if you're not certain it's the SAME entity
-- Award the FULL weight ONLY for definite matches of the SAME entity
+
+CONFIDENCE SCORING RULES:
+- If there's NO mention of something in the profile, confidence MUST be 0.0-0.2
+- "No direct mention" or "Nothing states" = confidence 0.0-0.1 (will be filtered out)
+- "NULL", "None", "N/A", or empty string = confidence MUST be 0.0 (NOT A MATCH!)
+- NULL or missing data is NEVER a match - confidence MUST be 0.0
+- Only use confidence > 0.3 when you find an ACTUAL match with real text
+- Confidence 0.8-1.0: Clear, explicit match (e.g., "Johns Hopkins" found when looking for "Johns Hopkins")
+- Confidence 0.5-0.7: Strong implied match (e.g., "USAFA grad" when looking for "Air Force Academy")
+- Confidence 0.3-0.4: Weak but valid match (e.g., abbreviations or informal references)
+- Confidence 0.0-0.2: NO match found (will be filtered out)
 
 Return ONLY valid JSON in this format:
 {{
@@ -167,7 +183,12 @@ Return ONLY valid JSON in this format:
   "recommendation": "one sentence on why to connect"
 }}
 
-REMINDER: Only match the SAME institutions/companies. Stanford and Johns Hopkins are DIFFERENT universities - NOT a match!"""
+CRITICAL REMINDERS:
+1. Only match the SAME institutions/companies. Stanford ≠ Johns Hopkins
+2. If you write "No direct mention", "Nothing states", "NULL", "None", confidence MUST be 0.0-0.1
+3. DO NOT give points for things that aren't actually in the profile!
+4. NULL is NOT a match! If found_in_profile is NULL, confidence = 0.0
+5. NEVER assign confidence > 0.2 unless you found ACTUAL TEXT in the profile"""
 
         return prompt
 
