@@ -6,6 +6,36 @@
 // Log to confirm script is loaded
 console.log('NetworkIQ: UI script loaded, initializing...');
 
+// Helper function for safe message passing
+async function safeChromeSendMessage(message) {
+  try {
+    // Check if extension context is valid
+    if (!chrome.runtime?.id) {
+      throw new Error('Extension context invalidated');
+    }
+    
+    return await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Message timeout'));
+      }, 10000);
+      
+      chrome.runtime.sendMessage(message, (response) => {
+        clearTimeout(timeout);
+        
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        
+        resolve(response);
+      });
+    });
+  } catch (error) {
+    console.warn('NetworkIQ: Message failed:', error.message);
+    throw error;
+  }
+}
+
 class NetworkIQUI {
   constructor() {
     this.parser = new LinkedInParser();
@@ -205,7 +235,7 @@ class NetworkIQUI {
               console.log('NetworkIQ: Sending sanitized data to LLM');
             // Sanitize profile data before sending to LLM
             const sanitizedProfile = this.sanitizeProfileForLLM(profile);
-            const response = await chrome.runtime.sendMessage({
+            const response = await safeChromeSendMessage({
               action: 'analyzeProfile',
               profile: sanitizedProfile,
               searchElements: this.scorer.searchElements
@@ -660,7 +690,7 @@ class NetworkIQUI {
         regenerateBtn.textContent = 'Generating...';
       }
       
-      const response = await chrome.runtime.sendMessage({
+      const response = await safeChromeSendMessage({
         action: 'generateMessage',
         profile: this.currentProfile.profile,
         scoreData: this.currentProfile.scoreData,
@@ -1302,7 +1332,7 @@ ${this.scorer.generateMessage(profile, scoreData)}
     
     document.getElementById('niq-upgrade')?.addEventListener('click', () => {
       // Send message to open Stripe checkout with Advanced price
-      chrome.runtime.sendMessage({ 
+      safeChromeSendMessage({ 
         action: 'open_checkout',
         priceId: 'price_1Rs5yIQaJlv206wSfUp4nf4u' // Advanced tier $20/month
       });
@@ -1318,7 +1348,7 @@ ${this.scorer.generateMessage(profile, scoreData)}
     // Check if extension context is still valid before sending message
     if (chrome.runtime?.id) {
       try {
-        chrome.runtime.sendMessage({
+        safeChromeSendMessage({
           action: 'track',
           event: eventName,
           properties: {

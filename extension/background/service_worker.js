@@ -357,6 +357,11 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   };
   
   switch (request.action) {
+    case 'ping':
+      // Simple ping response for connection checking
+      originalSendResponse({ pong: true });
+      break;
+      
     case 'api_call':
       handleAPICall(request.endpoint, request.data)
         .then(originalSendResponse)

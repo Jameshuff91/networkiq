@@ -18,6 +18,7 @@
         "https://www.linkedin.com/*"
       ],
       "js": [
+        "utils/connection-helper.js",
         "content/parser.js",
         "content/scorer.js",
         "content/cache.js",

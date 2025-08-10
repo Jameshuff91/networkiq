@@ -179,10 +179,16 @@ function updateStats() {
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const thisWeek = allProfiles.filter(p => new Date(p.timestamp) > oneWeekAgo).length;
     
-    document.getElementById('total-profiles').textContent = totalProfiles;
-    document.getElementById('avg-score').textContent = avgScore;
-    document.getElementById('messages-sent').textContent = messagesGenerated;
-    document.getElementById('connections-made').textContent = thisWeek;
+    // Update stats with null checks
+    const totalProfilesEl = document.getElementById('total-profiles');
+    const avgScoreEl = document.getElementById('avg-score');
+    const messagesSentEl = document.getElementById('messages-sent');
+    const connectionsMadeEl = document.getElementById('connections-made');
+    
+    if (totalProfilesEl) totalProfilesEl.textContent = totalProfiles;
+    if (avgScoreEl) avgScoreEl.textContent = avgScore;
+    if (messagesSentEl) messagesSentEl.textContent = messagesGenerated;
+    if (connectionsMadeEl) connectionsMadeEl.textContent = thisWeek;
 }
 
 function formatDate(timestamp) {

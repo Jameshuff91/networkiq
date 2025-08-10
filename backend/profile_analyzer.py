@@ -1,36 +1,13 @@
 """
 LLM-based Profile Analyzer using Google Gemini Flash
 Intelligently matches LinkedIn profiles against user's background
-Enhanced with LangExtract for precise extraction and matching
 """
 
 import google.generativeai as genai
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List
 import os
 from dataclasses import dataclass
-import logging
-from tqdm import tqdm
-import sys
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
-
-try:
-    from langextract import extract
-    from langextract.data import ExampleData, Extraction, FormatType
-    LANGEXTRACT_AVAILABLE = True
-    logger.info("✅ LangExtract module loaded successfully")
-except ImportError:
-    LANGEXTRACT_AVAILABLE = False
-    logger.warning("⚠️ LangExtract not available for profile analysis")
 
 
 @dataclass
@@ -45,11 +22,9 @@ class ProfileMatch:
 
 
 class ProfileAnalyzer:
-    def __init__(self, api_key: str = None, use_langextract: bool = True, verbose: bool = True):
-        """Initialize the Gemini Flash analyzer with optional LangExtract support"""
+    def __init__(self, api_key: str = None):
+        """Initialize the Gemini Flash analyzer"""
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
-        self.verbose = verbose
-        
         if not self.api_key:
             raise ValueError("Gemini API key required")
 
@@ -57,14 +32,6 @@ class ProfileAnalyzer:
 
         # Use Gemini Flash for fast, cost-effective analysis
         self.model = genai.GenerativeModel("gemini-1.5-flash")
-        logger.info("🚀 Initialized Gemini Flash model")
-        
-        # Enable LangExtract if available
-        self.use_langextract = use_langextract and LANGEXTRACT_AVAILABLE
-        if self.use_langextract:
-            logger.info("✨ LangExtract enabled for enhanced profile analysis")
-        else:
-            logger.info("📝 Using standard Gemini analysis (LangExtract disabled)")
 
     def analyze_profile(
         self, profile_data: Dict, user_search_elements: List[Dict]
@@ -79,20 +46,8 @@ class ProfileAnalyzer:
         Returns:
             Analysis results with matches, score, and insights
         """
-        
-        # Try LangExtract first if enabled
-        if self.use_langextract:
-            try:
-                profile_name = profile_data.get('name', 'Unknown')
-                logger.info(f"🔍 Analyzing profile: {profile_name} with LangExtract...")
-                result = self._analyze_with_langextract(profile_data, user_search_elements)
-                if result:
-                    logger.info(f"✅ LangExtract analysis successful for {profile_name} - Score: {result['score']}")
-                    return result
-            except Exception as e:
-                logger.warning(f"⚠️ LangExtract analysis failed: {e}, falling back to standard Gemini")
 
-        # Build the prompt for standard Gemini analysis
+        # Build the prompt
         prompt = self._build_analysis_prompt(profile_data, user_search_elements)
 
         try:
@@ -111,11 +66,16 @@ class ProfileAnalyzer:
 
             # Parse the JSON response
             result = json.loads(response_text)
+            
+            # Log raw matches before filtering
+            print(f"Raw matches from LLM: {len(result.get('matches', []))} matches")
+            for i, match in enumerate(result.get("matches", [])[:3]):
+                print(f"  Match {i+1}: {match.get('matches_element')} (confidence: {match.get('confidence', 'N/A')})")
 
             # Filter out low-confidence matches and NULL values
             CONFIDENCE_THRESHOLD = 0.3
             valid_matches = []
-            for match in result["matches"]:
+            for match in result.get("matches", []):
                 found_text = match.get("found_in_profile", "").strip().upper()
                 
                 # Force confidence to 0 if NULL or no real match found
@@ -153,252 +113,6 @@ class ProfileAnalyzer:
             print(f"Error analyzing profile: {e}")
             # Fallback to basic scoring if LLM fails
             return self._fallback_scoring(profile_data, user_search_elements)
-    
-    def _analyze_with_langextract(self, profile_data: Dict, user_search_elements: List[Dict]) -> Optional[Dict]:
-        """
-        Analyze profile using LangExtract for precise entity extraction and matching
-        """
-        # Combine profile text for analysis
-        profile_text = f"""
-        Name: {profile_data.get('name', '')}
-        Headline: {profile_data.get('headline', '')}
-        About: {profile_data.get('about', '')}
-        Experience: {profile_data.get('experienceText', '')}
-        Education: {profile_data.get('educationText', '')}
-        Full Text: {profile_data.get('text', '')}
-        """
-        
-        # Build extraction prompt focused on finding matches
-        extraction_prompt = f"""
-        Analyze this LinkedIn profile and extract entities that match the user's background.
-        
-        User's Background Elements to Find:
-        {json.dumps(user_search_elements, indent=2)}
-        
-        For each match found, extract:
-        1. The exact text from the profile that matches
-        2. Which user background element it matches
-        3. The category (education, company, military, skill, location, certification)
-        4. A confidence score (0.0-1.0) based on how exact the match is
-        
-        Focus on finding:
-        - Education institutions (universities, colleges, schools)
-        - Companies and organizations worked at
-        - Military service (branch, academy, rank)
-        - Technical skills and tools
-        - Certifications and qualifications
-        - Geographic locations
-        - Notable achievements or roles
-        
-        Return as structured JSON with a "matches" array.
-        """
-        
-        # Create example for better extraction
-        example_profile = """
-        Name: Jane Smith
-        Headline: Software Engineer at Google
-        Education: Stanford University - BS Computer Science
-        Experience: Google - Software Engineer (2020-Present)
-        """
-        
-        example_extractions = [
-            Extraction(extraction_class="company", extraction_text="Google"),
-            Extraction(extraction_class="education", extraction_text="Stanford University"),
-            Extraction(extraction_class="skill", extraction_text="Software Engineer"),
-        ]
-        
-        example = ExampleData(
-            text=example_profile,
-            extractions=example_extractions
-        )
-        
-        try:
-            # Perform extraction with LangExtract
-            result = extract(
-                text_or_documents=profile_text,
-                prompt_description=extraction_prompt,
-                examples=[example],
-                model_id="gemini-1.5-flash",
-                api_key=self.api_key,
-                format_type=FormatType.JSON,
-                debug=False,
-                temperature=0.3  # Lower temperature for more consistent matching
-            )
-            
-            # Parse the result
-            if hasattr(result, 'data'):
-                extracted_data = result.data
-            else:
-                extracted_data = json.loads(str(result)) if isinstance(result, str) else {}
-            
-            # Process extracted matches
-            matches = []
-            if "matches" in extracted_data:
-                for match_data in extracted_data["matches"]:
-                    # Find corresponding user element
-                    user_element = self._find_matching_element(
-                        match_data.get("text", ""),
-                        user_search_elements
-                    )
-                    
-                    if user_element:
-                        matches.append({
-                            "category": match_data.get("category", user_element["category"]),
-                            "found_in_profile": match_data.get("text", ""),
-                            "matches_element": user_element["display"],
-                            "points": user_element["weight"],
-                            "confidence": match_data.get("confidence", 0.8),
-                            "reasoning": f"Found exact match for {user_element['category']}"
-                        })
-            
-            # If we got extractions instead of matches
-            elif hasattr(result, 'extractions'):
-                matches = self._process_extractions(result.extractions, user_search_elements)
-            
-            # Calculate score and tier
-            total_score = sum(m["points"] for m in matches if m.get("confidence", 0) >= 0.3)
-            total_score = min(total_score, 100)
-            
-            tier = (
-                "high" if total_score >= 40
-                else "medium" if total_score >= 20
-                else "low"
-            )
-            
-            # Generate insights based on matches
-            insights = self._generate_insights(matches, profile_data)
-            
-            return {
-                "score": total_score,
-                "tier": tier,
-                "matches": matches,
-                "insights": insights,
-                "hidden_connections": self._find_hidden_connections(matches),
-                "recommendation": self._generate_recommendation(matches, profile_data),
-                "extraction_method": "langextract"
-            }
-            
-        except Exception as e:
-            print(f"LangExtract processing error: {e}")
-            return None
-    
-    def _find_matching_element(self, extracted_text: str, user_elements: List[Dict]) -> Optional[Dict]:
-        """Find the user element that best matches the extracted text"""
-        extracted_lower = extracted_text.lower()
-        
-        for element in user_elements:
-            element_value = element.get("value", "").lower()
-            # Check for exact or partial match
-            if element_value in extracted_lower or extracted_lower in element_value:
-                return element
-            
-            # Check for common variations
-            if element.get("category") == "education":
-                # Handle university name variations
-                if self._match_education(element_value, extracted_lower):
-                    return element
-            elif element.get("category") == "company":
-                # Handle company name variations
-                if self._match_company(element_value, extracted_lower):
-                    return element
-        
-        return None
-    
-    def _match_education(self, user_edu: str, profile_edu: str) -> bool:
-        """Check if education institutions match (handling variations)"""
-        # Common abbreviations and variations
-        edu_variations = {
-            "mit": ["massachusetts institute of technology", "mit"],
-            "stanford": ["stanford university", "stanford"],
-            "harvard": ["harvard university", "harvard college", "harvard"],
-            "usafa": ["air force academy", "united states air force academy", "usafa"],
-            "west point": ["west point", "usma", "united states military academy"],
-        }
-        
-        for key, variations in edu_variations.items():
-            if key in user_edu:
-                for variation in variations:
-                    if variation in profile_edu:
-                        return True
-        
-        return False
-    
-    def _match_company(self, user_company: str, profile_company: str) -> bool:
-        """Check if companies match (handling subsidiaries and variations)"""
-        company_variations = {
-            "google": ["google", "alphabet", "youtube"],
-            "meta": ["meta", "facebook", "instagram", "whatsapp"],
-            "amazon": ["amazon", "aws", "amazon web services"],
-            "microsoft": ["microsoft", "linkedin", "github"],
-        }
-        
-        for key, variations in company_variations.items():
-            if key in user_company:
-                for variation in variations:
-                    if variation in profile_company:
-                        return True
-        
-        return False
-    
-    def _process_extractions(self, extractions: List, user_elements: List[Dict]) -> List[Dict]:
-        """Process LangExtract extractions into matches"""
-        matches = []
-        
-        for extraction in extractions:
-            user_element = self._find_matching_element(
-                extraction.extraction_text,
-                user_elements
-            )
-            
-            if user_element:
-                matches.append({
-                    "category": user_element["category"],
-                    "found_in_profile": extraction.extraction_text,
-                    "matches_element": user_element["display"],
-                    "points": user_element["weight"],
-                    "confidence": 0.9,  # High confidence from LangExtract
-                    "reasoning": f"LangExtract found {user_element['category']} match"
-                })
-        
-        return matches
-    
-    def _generate_insights(self, matches: List[Dict], profile_data: Dict) -> List[str]:
-        """Generate strategic insights based on matches"""
-        insights = []
-        
-        # Check for strong connections
-        high_weight_matches = [m for m in matches if m["points"] >= 30]
-        if high_weight_matches:
-            insights.append(f"Strong connection through {high_weight_matches[0]['category']}")
-        
-        # Check for multiple touchpoints
-        categories = set(m["category"] for m in matches)
-        if len(categories) >= 3:
-            insights.append("Multiple connection points across different areas")
-        
-        return insights
-    
-    def _find_hidden_connections(self, matches: List[Dict]) -> List[str]:
-        """Identify hidden connection patterns"""
-        connections = []
-        
-        categories = [m["category"] for m in matches]
-        if "education" in categories:
-            connections.append("Alumni connection")
-        if "company" in categories:
-            connections.append("Professional network overlap")
-        if "military" in categories:
-            connections.append("Military bond")
-        
-        return connections
-    
-    def _generate_recommendation(self, matches: List[Dict], profile_data: Dict) -> str:
-        """Generate connection recommendation"""
-        if not matches:
-            return "Consider connecting to expand your network"
-        
-        strongest_match = max(matches, key=lambda x: x["points"])
-        return f"Strong connection opportunity through {strongest_match['matches_element']}"
 
     def _build_analysis_prompt(self, profile: Dict, search_elements: List[Dict]) -> str:
         """Build the prompt for Gemini Flash"""
@@ -612,213 +326,3 @@ Return only the message text, no quotes or explanation."""
                 )
                 return f"Hi {name}! I noticed we share {connection}. Given {my_company}, I'd love to connect and exchange insights!"
             return f"Hi {name}! Your background at {profile.get('company', 'your company')} is impressive. With {my_company}, I'd value connecting!"
-    
-    def analyze_profiles_batch(
-        self, profiles: List[Dict], user_search_elements: List[Dict], max_workers: int = 5
-    ) -> List[Dict]:
-        """
-        Analyze multiple profiles in batch using LangExtract for efficiency
-        
-        Args:
-            profiles: List of LinkedIn profile data dictionaries
-            user_search_elements: User's background elements to match against
-            max_workers: Maximum parallel workers for batch processing
-        
-        Returns:
-            List of analysis results for each profile
-        """
-        if not profiles:
-            return []
-        
-        logger.info(f"📊 Starting batch analysis of {len(profiles)} profiles...")
-        
-        # If LangExtract is available and we have multiple profiles, use batch processing
-        if self.use_langextract and len(profiles) > 1:
-            try:
-                logger.info(f"🚀 Using LangExtract batch processing with {max_workers} workers...")
-                return self._batch_analyze_with_langextract(profiles, user_search_elements, max_workers)
-            except Exception as e:
-                logger.warning(f"⚠️ Batch LangExtract failed: {e}, falling back to sequential processing")
-        
-        # Fallback to sequential processing with progress bar
-        logger.info("📝 Using sequential processing...")
-        results = []
-        
-        # Create progress bar
-        with tqdm(total=len(profiles), desc="Analyzing profiles", unit="profile") as pbar:
-            for i, profile in enumerate(profiles):
-                profile_name = profile.get('name', 'Unknown')
-                pbar.set_description(f"Analyzing {profile_name}")
-                
-                # Log current profile
-                logger.info(f"Processing profile {i+1}/{len(profiles)}: {profile_name}")
-                
-                # Analyze profile
-                result = self.analyze_profile(profile, user_search_elements)
-                results.append(result)
-                
-                # Update progress bar with score info
-                score = result.get('score', 0)
-                tier = result.get('tier', 'unknown')
-                pbar.set_postfix(score=score, tier=tier)
-                pbar.update(1)
-        
-        logger.info(f"✅ Batch analysis complete! Processed {len(results)} profiles")
-        return results
-    
-    def _batch_analyze_with_langextract(
-        self, profiles: List[Dict], user_search_elements: List[Dict], max_workers: int
-    ) -> List[Dict]:
-        """
-        Perform batch analysis using LangExtract's parallel processing capabilities
-        """
-        logger.info("🔄 Preparing profiles for batch LangExtract processing...")
-        
-        # Prepare documents for batch processing with progress bar
-        documents = []
-        with tqdm(total=len(profiles), desc="Preparing profiles", unit="profile") as pbar:
-            for profile in profiles:
-                profile_text = f"""
-                Name: {profile.get('name', '')}
-                Headline: {profile.get('headline', '')}
-                About: {profile.get('about', '')}
-                Experience: {profile.get('experienceText', '')}
-                Education: {profile.get('educationText', '')}
-                Full Text: {profile.get('text', '')}
-                """
-                documents.append(profile_text)
-                pbar.update(1)
-        
-        # Build extraction prompt
-        extraction_prompt = f"""
-        Extract entities from each LinkedIn profile that match the user's background.
-        
-        User's Background Elements:
-        {json.dumps(user_search_elements, indent=2)}
-        
-        For each profile, identify:
-        - Matching education institutions
-        - Matching companies
-        - Matching skills
-        - Military connections
-        - Geographic connections
-        - Certifications
-        
-        Return structured data with matches, confidence scores, and categories.
-        """
-        
-        # Create example
-        example_profile = "Name: John Doe\nEducation: MIT\nCompany: Google"
-        example_extractions = [
-            Extraction(extraction_class="education", extraction_text="MIT"),
-            Extraction(extraction_class="company", extraction_text="Google"),
-        ]
-        
-        example = ExampleData(
-            text=example_profile,
-            extractions=example_extractions
-        )
-        
-        try:
-            # Batch extract with parallel processing
-            logger.info(f"🌟 Starting LangExtract batch extraction (batch size: {min(10, len(profiles))})")
-            results = extract(
-                text_or_documents=documents,
-                prompt_description=extraction_prompt,
-                examples=[example],
-                model_id="gemini-1.5-flash",
-                api_key=self.api_key,
-                format_type=FormatType.JSON,
-                debug=False,
-                max_workers=max_workers,
-                batch_length=min(10, len(profiles)),  # Process in batches of 10
-                temperature=0.3
-            )
-            
-            logger.info("📦 Processing extraction results...")
-            # Process results for each profile with progress bar
-            analyzed_profiles = []
-            
-            # Handle different result formats
-            if isinstance(results, list):
-                with tqdm(total=len(profiles), desc="Processing results", unit="profile") as pbar:
-                    for i, (profile, result) in enumerate(zip(profiles, results)):
-                        profile_name = profile.get('name', 'Unknown')
-                        pbar.set_description(f"Processing {profile_name}")
-                        
-                        analysis = self._process_batch_result(result, profile, user_search_elements)
-                        analyzed_profiles.append(analysis)
-                        
-                        score = analysis.get('score', 0)
-                        pbar.set_postfix(score=score)
-                        pbar.update(1)
-            else:
-                # Single result, apply to all profiles
-                logger.info("Processing single result for all profiles...")
-                for profile in profiles:
-                    analysis = self._process_batch_result(results, profile, user_search_elements)
-                    analyzed_profiles.append(analysis)
-            
-            logger.info(f"✅ LangExtract batch processing complete!")
-            return analyzed_profiles
-            
-        except Exception as e:
-            logger.error(f"❌ Batch processing error: {e}")
-            # Fall back to individual processing with progress bar
-            logger.info("⚠️ Falling back to individual profile processing...")
-            results = []
-            with tqdm(total=len(profiles), desc="Fallback processing", unit="profile") as pbar:
-                for profile in profiles:
-                    result = self.analyze_profile(profile, user_search_elements)
-                    results.append(result)
-                    pbar.update(1)
-            return results
-    
-    def _process_batch_result(
-        self, result, profile: Dict, user_search_elements: List[Dict]
-    ) -> Dict:
-        """Process a single result from batch extraction"""
-        matches = []
-        
-        # Extract matches from result
-        if hasattr(result, 'data'):
-            data = result.data
-            if "matches" in data:
-                for match in data["matches"]:
-                    user_element = self._find_matching_element(
-                        match.get("text", ""),
-                        user_search_elements
-                    )
-                    if user_element:
-                        matches.append({
-                            "category": user_element["category"],
-                            "found_in_profile": match.get("text", ""),
-                            "matches_element": user_element["display"],
-                            "points": user_element["weight"],
-                            "confidence": match.get("confidence", 0.8),
-                            "reasoning": "Batch extraction match"
-                        })
-        
-        elif hasattr(result, 'extractions'):
-            matches = self._process_extractions(result.extractions, user_search_elements)
-        
-        # Calculate score
-        total_score = sum(m["points"] for m in matches if m.get("confidence", 0) >= 0.3)
-        total_score = min(total_score, 100)
-        
-        tier = (
-            "high" if total_score >= 40
-            else "medium" if total_score >= 20
-            else "low"
-        )
-        
-        return {
-            "profile_name": profile.get("name", "Unknown"),
-            "score": total_score,
-            "tier": tier,
-            "matches": matches,
-            "insights": self._generate_insights(matches, profile),
-            "hidden_connections": self._find_hidden_connections(matches),
-            "recommendation": self._generate_recommendation(matches, profile),
-            "extraction_method": "langextract_batch"
-        }
