@@ -12,13 +12,27 @@ import PyPDF2
 from docx import Document
 import io
 import google.generativeai as genai
+import logging
+import sys
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
 try:
     from langextract import extract
     from langextract.data import ExampleData, Extraction, FormatType
     LANGEXTRACT_AVAILABLE = True
+    logger.info("✅ LangExtract available for resume parsing")
 except ImportError:
     LANGEXTRACT_AVAILABLE = False
-    print("LangExtract not available, using standard parsing methods")
+    logger.warning("⚠️ LangExtract not available, using standard parsing methods")
 
 
 class ResumeParser:
@@ -38,11 +52,11 @@ class ResumeParser:
                 
                 # Check if LangExtract is available
                 if self.use_langextract:
-                    print("LangExtract available for enhanced parsing")
+                    logger.info("✨ LangExtract enabled for enhanced resume parsing")
             else:
                 self.use_gemini = False
                 self.use_langextract = False
-                print("Gemini API key not found, falling back to regex parsing")
+                logger.warning("⚠️ Gemini API key not found, falling back to regex parsing")
 
         # Common section headers to identify
         self.section_headers = [
@@ -111,21 +125,24 @@ class ResumeParser:
         # Try LangExtract first if available
         if self.use_langextract and hasattr(self, "gemini_api_key"):
             try:
-                print("Parsing resume with LangExtract...")
+                logger.info(f"📄 Parsing resume '{filename}' with LangExtract...")
                 parsed_data = self._parse_with_langextract(text)
-                print("LangExtract parsing successful")
+                logger.info(f"✅ LangExtract parsing successful - Extracted {len(parsed_data.get('search_elements', []))} search elements")
                 return parsed_data
             except Exception as e:
-                print(f"LangExtract parsing failed: {e}, falling back to Gemini")
+                logger.warning(f"⚠️ LangExtract parsing failed: {e}, falling back to Gemini")
                 
         # Use Gemini for parsing if available, otherwise fall back to regex
         if self.use_gemini and hasattr(self, "model"):
             try:
+                logger.info(f"🤖 Parsing resume with Gemini Flash...")
                 parsed_data = self._parse_with_gemini(text)
+                logger.info(f"✅ Gemini parsing successful - Extracted {len(parsed_data.get('search_elements', []))} search elements")
             except Exception as e:
-                print(f"Gemini parsing failed: {e}, falling back to regex")
+                logger.warning(f"⚠️ Gemini parsing failed: {e}, falling back to regex")
                 parsed_data = self._parse_text(text)
         else:
+            logger.info("📝 Using regex-based parsing...")
             parsed_data = self._parse_text(text)
 
         return parsed_data
@@ -162,6 +179,8 @@ class ResumeParser:
 
     def _parse_with_langextract(self, text: str) -> Dict:
         """Parse resume text using LangExtract for precise structured extraction"""
+        
+        logger.debug("🔍 Starting LangExtract extraction...")
         
         # Define extraction prompt
         prompt = """Extract the following structured information from this resume:

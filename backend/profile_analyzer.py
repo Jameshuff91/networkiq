@@ -9,14 +9,28 @@ import json
 from typing import Dict, List, Optional
 import os
 from dataclasses import dataclass
+import logging
+from tqdm import tqdm
+import sys
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 try:
     from langextract import extract
     from langextract.data import ExampleData, Extraction, FormatType
     LANGEXTRACT_AVAILABLE = True
+    logger.info("✅ LangExtract module loaded successfully")
 except ImportError:
     LANGEXTRACT_AVAILABLE = False
-    print("LangExtract not available for profile analysis")
+    logger.warning("⚠️ LangExtract not available for profile analysis")
 
 
 @dataclass
@@ -31,9 +45,11 @@ class ProfileMatch:
 
 
 class ProfileAnalyzer:
-    def __init__(self, api_key: str = None, use_langextract: bool = True):
+    def __init__(self, api_key: str = None, use_langextract: bool = True, verbose: bool = True):
         """Initialize the Gemini Flash analyzer with optional LangExtract support"""
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        self.verbose = verbose
+        
         if not self.api_key:
             raise ValueError("Gemini API key required")
 
@@ -41,11 +57,14 @@ class ProfileAnalyzer:
 
         # Use Gemini Flash for fast, cost-effective analysis
         self.model = genai.GenerativeModel("gemini-1.5-flash")
+        logger.info("🚀 Initialized Gemini Flash model")
         
         # Enable LangExtract if available
         self.use_langextract = use_langextract and LANGEXTRACT_AVAILABLE
         if self.use_langextract:
-            print("LangExtract enabled for enhanced profile analysis")
+            logger.info("✨ LangExtract enabled for enhanced profile analysis")
+        else:
+            logger.info("📝 Using standard Gemini analysis (LangExtract disabled)")
 
     def analyze_profile(
         self, profile_data: Dict, user_search_elements: List[Dict]
@@ -64,13 +83,14 @@ class ProfileAnalyzer:
         # Try LangExtract first if enabled
         if self.use_langextract:
             try:
-                print("Analyzing profile with LangExtract...")
+                profile_name = profile_data.get('name', 'Unknown')
+                logger.info(f"🔍 Analyzing profile: {profile_name} with LangExtract...")
                 result = self._analyze_with_langextract(profile_data, user_search_elements)
                 if result:
-                    print("LangExtract analysis successful")
+                    logger.info(f"✅ LangExtract analysis successful for {profile_name} - Score: {result['score']}")
                     return result
             except Exception as e:
-                print(f"LangExtract analysis failed: {e}, falling back to standard Gemini")
+                logger.warning(f"⚠️ LangExtract analysis failed: {e}, falling back to standard Gemini")
 
         # Build the prompt for standard Gemini analysis
         prompt = self._build_analysis_prompt(profile_data, user_search_elements)
@@ -610,21 +630,40 @@ Return only the message text, no quotes or explanation."""
         if not profiles:
             return []
         
+        logger.info(f"📊 Starting batch analysis of {len(profiles)} profiles...")
+        
         # If LangExtract is available and we have multiple profiles, use batch processing
         if self.use_langextract and len(profiles) > 1:
             try:
-                print(f"Batch analyzing {len(profiles)} profiles with LangExtract...")
+                logger.info(f"🚀 Using LangExtract batch processing with {max_workers} workers...")
                 return self._batch_analyze_with_langextract(profiles, user_search_elements, max_workers)
             except Exception as e:
-                print(f"Batch LangExtract failed: {e}, falling back to sequential processing")
+                logger.warning(f"⚠️ Batch LangExtract failed: {e}, falling back to sequential processing")
         
-        # Fallback to sequential processing
+        # Fallback to sequential processing with progress bar
+        logger.info("📝 Using sequential processing...")
         results = []
-        for i, profile in enumerate(profiles):
-            print(f"Analyzing profile {i+1}/{len(profiles)}: {profile.get('name', 'Unknown')}")
-            result = self.analyze_profile(profile, user_search_elements)
-            results.append(result)
         
+        # Create progress bar
+        with tqdm(total=len(profiles), desc="Analyzing profiles", unit="profile") as pbar:
+            for i, profile in enumerate(profiles):
+                profile_name = profile.get('name', 'Unknown')
+                pbar.set_description(f"Analyzing {profile_name}")
+                
+                # Log current profile
+                logger.info(f"Processing profile {i+1}/{len(profiles)}: {profile_name}")
+                
+                # Analyze profile
+                result = self.analyze_profile(profile, user_search_elements)
+                results.append(result)
+                
+                # Update progress bar with score info
+                score = result.get('score', 0)
+                tier = result.get('tier', 'unknown')
+                pbar.set_postfix(score=score, tier=tier)
+                pbar.update(1)
+        
+        logger.info(f"✅ Batch analysis complete! Processed {len(results)} profiles")
         return results
     
     def _batch_analyze_with_langextract(
@@ -633,18 +672,22 @@ Return only the message text, no quotes or explanation."""
         """
         Perform batch analysis using LangExtract's parallel processing capabilities
         """
-        # Prepare documents for batch processing
+        logger.info("🔄 Preparing profiles for batch LangExtract processing...")
+        
+        # Prepare documents for batch processing with progress bar
         documents = []
-        for profile in profiles:
-            profile_text = f"""
-            Name: {profile.get('name', '')}
-            Headline: {profile.get('headline', '')}
-            About: {profile.get('about', '')}
-            Experience: {profile.get('experienceText', '')}
-            Education: {profile.get('educationText', '')}
-            Full Text: {profile.get('text', '')}
-            """
-            documents.append(profile_text)
+        with tqdm(total=len(profiles), desc="Preparing profiles", unit="profile") as pbar:
+            for profile in profiles:
+                profile_text = f"""
+                Name: {profile.get('name', '')}
+                Headline: {profile.get('headline', '')}
+                About: {profile.get('about', '')}
+                Experience: {profile.get('experienceText', '')}
+                Education: {profile.get('educationText', '')}
+                Full Text: {profile.get('text', '')}
+                """
+                documents.append(profile_text)
+                pbar.update(1)
         
         # Build extraction prompt
         extraction_prompt = f"""
@@ -678,6 +721,7 @@ Return only the message text, no quotes or explanation."""
         
         try:
             # Batch extract with parallel processing
+            logger.info(f"🌟 Starting LangExtract batch extraction (batch size: {min(10, len(profiles))})")
             results = extract(
                 text_or_documents=documents,
                 prompt_description=extraction_prompt,
@@ -691,26 +735,44 @@ Return only the message text, no quotes or explanation."""
                 temperature=0.3
             )
             
-            # Process results for each profile
+            logger.info("📦 Processing extraction results...")
+            # Process results for each profile with progress bar
             analyzed_profiles = []
             
             # Handle different result formats
             if isinstance(results, list):
-                for i, (profile, result) in enumerate(zip(profiles, results)):
-                    analysis = self._process_batch_result(result, profile, user_search_elements)
-                    analyzed_profiles.append(analysis)
+                with tqdm(total=len(profiles), desc="Processing results", unit="profile") as pbar:
+                    for i, (profile, result) in enumerate(zip(profiles, results)):
+                        profile_name = profile.get('name', 'Unknown')
+                        pbar.set_description(f"Processing {profile_name}")
+                        
+                        analysis = self._process_batch_result(result, profile, user_search_elements)
+                        analyzed_profiles.append(analysis)
+                        
+                        score = analysis.get('score', 0)
+                        pbar.set_postfix(score=score)
+                        pbar.update(1)
             else:
                 # Single result, apply to all profiles
+                logger.info("Processing single result for all profiles...")
                 for profile in profiles:
                     analysis = self._process_batch_result(results, profile, user_search_elements)
                     analyzed_profiles.append(analysis)
             
+            logger.info(f"✅ LangExtract batch processing complete!")
             return analyzed_profiles
             
         except Exception as e:
-            print(f"Batch processing error: {e}")
-            # Fall back to individual processing
-            return [self.analyze_profile(p, user_search_elements) for p in profiles]
+            logger.error(f"❌ Batch processing error: {e}")
+            # Fall back to individual processing with progress bar
+            logger.info("⚠️ Falling back to individual profile processing...")
+            results = []
+            with tqdm(total=len(profiles), desc="Fallback processing", unit="profile") as pbar:
+                for profile in profiles:
+                    result = self.analyze_profile(profile, user_search_elements)
+                    results.append(result)
+                    pbar.update(1)
+            return results
     
     def _process_batch_result(
         self, result, profile: Dict, user_search_elements: List[Dict]
