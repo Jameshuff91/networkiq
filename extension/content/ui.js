@@ -762,8 +762,8 @@ class NetworkIQUI {
     // Throttled scoring for search results - compliant version
     console.log('NetworkIQ: Starting throttled scoring for visible profiles...');
     
-    // Rate limiting configuration
-    const MAX_PROFILES_PER_PAGE = 5; // Only score first 5 visible profiles
+    // Rate limiting configuration - increased to handle more profiles
+    const MAX_PROFILES_PER_PAGE = 25; // Score up to 25 profiles per page
     const MIN_DELAY_MS = 3000; // Minimum 3 seconds between profiles
     const MAX_DELAY_MS = 7000; // Maximum 7 seconds between profiles
     
@@ -956,6 +956,9 @@ class NetworkIQUI {
           <button class="niq-action-btn" id="niq-filter-btn" title="Filter results">
             🔍 Filter
           </button>
+          <button class="niq-action-btn" id="niq-export-btn" title="Export matches to CSV">
+            📥 Export
+          </button>
         </div>
       </div>
     `;
@@ -1123,6 +1126,80 @@ ${this.scorer.generateMessage(profile, scoreData)}
     document.getElementById('niq-filter-btn')?.addEventListener('click', () => {
       this.showFilterModal();
     });
+    
+    // Export button
+    document.getElementById('niq-export-btn')?.addEventListener('click', () => {
+      this.exportMatches();
+    });
+  }
+  
+  exportMatches() {
+    if (!this.scoredProfiles || this.scoredProfiles.length === 0) {
+      this.showToast('No profiles to export. Please score profiles first.');
+      return;
+    }
+    
+    // Prepare CSV data
+    const csvRows = [
+      // Header row
+      ['Name', 'Title', 'Company', 'Location', 'Score', 'Tier', 'Matches', 'Profile URL']
+    ];
+    
+    // Add data rows
+    this.scoredProfiles.forEach(item => {
+      const { profile, scoreData } = item;
+      
+      // Extract matches text
+      const matchesText = scoreData.matches && scoreData.matches.length > 0
+        ? scoreData.matches
+            .filter(m => {
+              const text = m?.text || m?.matches_element || m?.display || m?.value || '';
+              return text && text !== 'undefined' && text !== '';
+            })
+            .map(m => {
+              const text = m.text || m.matches_element || m.display || m.value || '';
+              const points = m.weight || m.points || 0;
+              return `${text} (+${points})`;
+            })
+            .join('; ')
+        : 'No matches';
+      
+      csvRows.push([
+        profile.name || '',
+        profile.title || '',
+        profile.company || '',
+        profile.location || '',
+        scoreData.score || 0,
+        scoreData.tier || 'low',
+        matchesText,
+        profile.url || ''
+      ]);
+    });
+    
+    // Convert to CSV string
+    const csvContent = csvRows
+      .map(row => row.map(cell => {
+        // Escape quotes and wrap in quotes if contains comma or quotes
+        const cellStr = String(cell);
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(','))
+      .join('\n');
+    
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `networkiq_matches_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    this.showToast(`Exported ${this.scoredProfiles.length} profiles to CSV`);
   }
   
   sortSearchResults() {
