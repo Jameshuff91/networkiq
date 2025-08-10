@@ -1,6 +1,7 @@
 """
 Resume Parser Module
 Extracts text and key information from PDF and DOCX resumes
+Enhanced with LangExtract for more accurate structured extraction
 """
 
 import re
@@ -11,13 +12,21 @@ import PyPDF2
 from docx import Document
 import io
 import google.generativeai as genai
+try:
+    from langextract import extract
+    from langextract.data import ExampleData, Extraction, FormatType
+    LANGEXTRACT_AVAILABLE = True
+except ImportError:
+    LANGEXTRACT_AVAILABLE = False
+    print("LangExtract not available, using standard parsing methods")
 
 
 class ResumeParser:
     """Parse resumes and extract key information for profile matching"""
 
-    def __init__(self, use_gemini=True):
+    def __init__(self, use_gemini=True, use_langextract=True):
         self.use_gemini = use_gemini
+        self.use_langextract = use_langextract and LANGEXTRACT_AVAILABLE
 
         # Initialize Gemini if API key is available
         if use_gemini:
@@ -25,8 +34,14 @@ class ResumeParser:
             if gemini_api_key:
                 genai.configure(api_key=gemini_api_key)
                 self.model = genai.GenerativeModel("gemini-1.5-flash")
+                self.gemini_api_key = gemini_api_key
+                
+                # Check if LangExtract is available
+                if self.use_langextract:
+                    print("LangExtract available for enhanced parsing")
             else:
                 self.use_gemini = False
+                self.use_langextract = False
                 print("Gemini API key not found, falling back to regex parsing")
 
         # Common section headers to identify
@@ -93,6 +108,16 @@ class ResumeParser:
         else:
             text = file_content.decode("utf-8", errors="ignore")
 
+        # Try LangExtract first if available
+        if self.use_langextract and hasattr(self, "gemini_api_key"):
+            try:
+                print("Parsing resume with LangExtract...")
+                parsed_data = self._parse_with_langextract(text)
+                print("LangExtract parsing successful")
+                return parsed_data
+            except Exception as e:
+                print(f"LangExtract parsing failed: {e}, falling back to Gemini")
+                
         # Use Gemini for parsing if available, otherwise fall back to regex
         if self.use_gemini and hasattr(self, "model"):
             try:
@@ -134,6 +159,258 @@ class ResumeParser:
         except Exception as e:
             print(f"Error parsing DOCX: {e}")
             return ""
+
+    def _parse_with_langextract(self, text: str) -> Dict:
+        """Parse resume text using LangExtract for precise structured extraction"""
+        
+        # Define extraction prompt
+        prompt = """Extract the following structured information from this resume:
+        
+        1. email - Email address
+        2. phone - Phone number  
+        3. education - List of educational institutions with degree, field, and graduation year
+        4. companies - List of companies worked at
+        5. skills - Technical skills, tools, and programming languages
+        6. military_service - Military branch, academy, rank if applicable
+        7. certifications - Professional certifications
+        8. locations - Cities/states lived or worked in
+        9. achievements - Notable achievements or awards
+        10. keywords - Industry keywords and specializations
+        
+        Return as structured JSON with these exact field names."""
+        
+        # Create example for better extraction
+        example_text = """Jane Smith\njane@example.com\n(555) 987-6543\n\nEDUCATION\nHarvard University - BA Economics, 2015\n\nEXPERIENCE\nApple - Product Manager (2015-2020)\n\nSKILLS\nPython, SQL, Data Analysis"""
+        
+        example_extractions = [
+            Extraction(extraction_class="email", extraction_text="jane@example.com"),
+            Extraction(extraction_class="phone", extraction_text="(555) 987-6543"),
+            Extraction(extraction_class="education", extraction_text="Harvard University - BA Economics, 2015"),
+            Extraction(extraction_class="company", extraction_text="Apple"),
+            Extraction(extraction_class="skill", extraction_text="Python"),
+            Extraction(extraction_class="skill", extraction_text="SQL"),
+            Extraction(extraction_class="skill", extraction_text="Data Analysis")
+        ]
+        
+        example = ExampleData(
+            text=example_text,
+            extractions=example_extractions
+        )
+        
+        # Perform extraction
+        result = extract(
+            text_or_documents=text,
+            prompt_description=prompt,
+            examples=[example],
+            model_id="gemini-1.5-flash",
+            api_key=self.gemini_api_key,
+            format_type=FormatType.JSON,
+            debug=False
+        )
+        
+        # Parse the result - LangExtract returns AnnotatedDocument
+        if hasattr(result, 'data'):
+            extracted_data = result.data
+        elif hasattr(result, 'extractions'):
+            # Build data from extractions
+            extracted_data = self._build_data_from_extractions(result.extractions)
+        else:
+            # Try to parse as JSON if it's a string result
+            extracted_data = json.loads(str(result)) if isinstance(result, str) else {}
+        
+        # Calculate years of experience from work history
+        years_experience = 0
+        if "work_experience" in extracted_data:
+            for exp in extracted_data["work_experience"]:
+                if "duration" in exp:
+                    # Try to extract years from duration string
+                    duration = exp["duration"]
+                    year_matches = re.findall(r"(\d+)\s*year", duration.lower())
+                    if year_matches:
+                        years_experience += int(year_matches[0])
+        
+        # Build the final parsed data structure
+        parsed_data = {
+            "full_text": text[:5000],
+            "email": extracted_data.get("email"),
+            "phone": extracted_data.get("phone"),
+            "education": extracted_data.get("education", []),
+            "companies": extracted_data.get("companies", []),
+            "skills": extracted_data.get("skills", []),
+            "military_service": extracted_data.get("military_service"),
+            "years_experience": years_experience,
+            "keywords": extracted_data.get("keywords", []),
+            "certifications": extracted_data.get("certifications", []),
+            "locations": extracted_data.get("locations", []),
+            "achievements": extracted_data.get("achievements", []),
+            "search_elements": []
+        }
+        
+        # Build search elements with source grounding confidence
+        search_elements = []
+        
+        # Add education elements with high confidence (source-grounded)
+        for edu in parsed_data.get("education", []):
+            if "institution" in edu and edu["institution"]:
+                search_elements.append({
+                    "category": "education",
+                    "value": edu["institution"].lower(),
+                    "weight": 35,  # Higher weight for source-grounded matches
+                    "display": f"Alumni: {edu['institution']}",
+                    "confidence": 0.95  # High confidence from LangExtract
+                })
+        
+        # Add company elements
+        for company in parsed_data.get("companies", []):
+            if company:
+                search_elements.append({
+                    "category": "company", 
+                    "value": company.lower(),
+                    "weight": 30,
+                    "display": f"Former {company}",
+                    "confidence": 0.95
+                })
+        
+        # Add military elements if present
+        if parsed_data.get("military_service"):
+            military = parsed_data["military_service"]
+            if military.get("academy"):
+                search_elements.append({
+                    "category": "military",
+                    "value": military["academy"].lower(),
+                    "weight": 45,  # Very high weight for military academy
+                    "display": f"{military['academy']} Alumni",
+                    "confidence": 0.95
+                })
+            elif military.get("branch"):
+                search_elements.append({
+                    "category": "military",
+                    "value": military["branch"].lower(),
+                    "weight": 35,
+                    "display": f"{military['branch']} Veteran",
+                    "confidence": 0.95
+                })
+        
+        # Add location elements
+        for location in parsed_data.get("locations", [])[:3]:  # Top 3 locations
+            if location:
+                search_elements.append({
+                    "category": "location",
+                    "value": location.lower(),
+                    "weight": 25,
+                    "display": f"Connected to {location}",
+                    "confidence": 0.9
+                })
+        
+        # Add top skills (limit to avoid over-matching)
+        for skill in parsed_data.get("skills", [])[:5]:  # Top 5 skills
+            if skill:
+                search_elements.append({
+                    "category": "skill",
+                    "value": skill.lower(),
+                    "weight": 15,
+                    "display": f"Shared skill: {skill}",
+                    "confidence": 0.85
+                })
+        
+        # Add certifications
+        for cert in parsed_data.get("certifications", []):
+            if cert:
+                search_elements.append({
+                    "category": "certification",
+                    "value": cert.lower(),
+                    "weight": 20,
+                    "display": f"Both have {cert}",
+                    "confidence": 0.9
+                })
+        
+        # Add notable achievements
+        for achievement in parsed_data.get("achievements", [])[:3]:
+            if achievement and len(achievement) < 50:  # Short achievements as keywords
+                search_elements.append({
+                    "category": "achievement",
+                    "value": achievement.lower(),
+                    "weight": 20,
+                    "display": achievement,
+                    "confidence": 0.85
+                })
+        
+        # Sort by weight and limit to top 15 elements
+        search_elements.sort(key=lambda x: x["weight"], reverse=True)
+        parsed_data["search_elements"] = search_elements[:15]
+        
+        # Add extraction metadata
+        parsed_data["extraction_method"] = "langextract"
+        parsed_data["extraction_confidence"] = "high"
+        
+        return parsed_data
+    
+    def _build_data_from_extractions(self, extractions: List) -> Dict:
+        """Build structured data from LangExtract extractions"""
+        data = {
+            "email": None,
+            "phone": None,
+            "education": [],
+            "companies": [],
+            "skills": [],
+            "military_service": None,
+            "certifications": [],
+            "locations": [],
+            "achievements": [],
+            "keywords": []
+        }
+        
+        for ext in extractions:
+            if ext.extraction_class == "email":
+                data["email"] = ext.extraction_text
+            elif ext.extraction_class == "phone":
+                data["phone"] = ext.extraction_text
+            elif ext.extraction_class == "education":
+                # Parse education text
+                edu_text = ext.extraction_text
+                parts = edu_text.split("-")
+                if len(parts) >= 2:
+                    data["education"].append({
+                        "institution": parts[0].strip(),
+                        "degree": parts[1].strip() if len(parts) > 1 else ""
+                    })
+            elif ext.extraction_class == "company":
+                data["companies"].append(ext.extraction_text)
+            elif ext.extraction_class == "skill":
+                data["skills"].append(ext.extraction_text)
+            elif ext.extraction_class == "certification":
+                data["certifications"].append(ext.extraction_text)
+            elif ext.extraction_class == "location":
+                data["locations"].append(ext.extraction_text)
+            elif ext.extraction_class == "achievement":
+                data["achievements"].append(ext.extraction_text)
+            elif ext.extraction_class == "keyword":
+                data["keywords"].append(ext.extraction_text)
+            elif ext.extraction_class == "military":
+                if not data["military_service"]:
+                    data["military_service"] = {}
+                # Parse military text for branch/academy/rank
+                mil_text = ext.extraction_text.lower()
+                if "air force" in mil_text or "usafa" in mil_text:
+                    data["military_service"]["branch"] = "air force"
+                    if "usafa" in mil_text or "academy" in mil_text:
+                        data["military_service"]["academy"] = "USAFA"
+                elif "army" in mil_text or "west point" in mil_text:
+                    data["military_service"]["branch"] = "army"
+                    if "west point" in mil_text:
+                        data["military_service"]["academy"] = "West Point"
+                elif "navy" in mil_text or "naval academy" in mil_text:
+                    data["military_service"]["branch"] = "navy"
+                    if "naval academy" in mil_text:
+                        data["military_service"]["academy"] = "Naval Academy"
+                elif "marine" in mil_text:
+                    data["military_service"]["branch"] = "marines"
+                elif "coast guard" in mil_text:
+                    data["military_service"]["branch"] = "coast guard"
+                    
+                data["military_service"]["veteran"] = True
+        
+        return data
 
     def _parse_with_gemini(self, text: str) -> Dict:
         """Parse resume text using Gemini Flash LLM for better extraction"""
@@ -690,7 +967,7 @@ Resume text:
 
 
 def parse_resume_file(
-    file_content: bytes, filename: str, use_gemini: bool = True
+    file_content: bytes, filename: str, use_gemini: bool = True, use_langextract: bool = True
 ) -> Dict:
     """Convenience function to parse a resume file
 
@@ -698,6 +975,7 @@ def parse_resume_file(
         file_content: The binary content of the file
         filename: The name of the file
         use_gemini: Whether to use Gemini Flash for parsing (default: True)
+        use_langextract: Whether to use LangExtract for parsing (default: True)
     """
-    parser = ResumeParser(use_gemini=use_gemini)
+    parser = ResumeParser(use_gemini=use_gemini, use_langextract=use_langextract)
     return parser.parse_resume(file_content, filename)
