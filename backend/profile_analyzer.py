@@ -66,28 +66,40 @@ class ProfileAnalyzer:
 
             # Parse the JSON response
             result = json.loads(response_text)
-            
+
             # Log raw matches before filtering
             print(f"Raw matches from LLM: {len(result.get('matches', []))} matches")
             for i, match in enumerate(result.get("matches", [])[:3]):
-                print(f"  Match {i+1}: {match.get('matches_element')} (confidence: {match.get('confidence', 'N/A')})")
+                print(
+                    f"  Match {i+1}: {match.get('matches_element')} (confidence: {match.get('confidence', 'N/A')})"
+                )
 
             # Filter out low-confidence matches and NULL values
             CONFIDENCE_THRESHOLD = 0.3
             valid_matches = []
             for match in result.get("matches", []):
                 found_text = match.get("found_in_profile", "").strip().upper()
-                
+
                 # Force confidence to 0 if NULL or no real match found
-                if found_text in ["NULL", "NONE", "N/A", ""] or "NO DIRECT MENTION" in found_text or "NOTHING STATES" in found_text:
+                if (
+                    found_text in ["NULL", "NONE", "N/A", ""]
+                    or "NO DIRECT MENTION" in found_text
+                    or "NOTHING STATES" in found_text
+                ):
                     match["confidence"] = 0.0
-                    print(f"Forcing confidence to 0.0 for NULL/empty match: {match.get('matches_element', 'unknown')}")
-                
-                confidence = match.get("confidence", 1.0)  # Default to 1.0 if not specified
+                    print(
+                        f"Forcing confidence to 0.0 for NULL/empty match: {match.get('matches_element', 'unknown')}"
+                    )
+
+                confidence = match.get(
+                    "confidence", 1.0
+                )  # Default to 1.0 if not specified
                 if confidence >= CONFIDENCE_THRESHOLD:
                     valid_matches.append(match)
                 else:
-                    print(f"Filtering out low-confidence match ({confidence}): {match.get('matches_element', 'unknown')}")
+                    print(
+                        f"Filtering out low-confidence match ({confidence}): {match.get('matches_element', 'unknown')}"
+                    )
 
             # Calculate total score from valid matches only
             total_score = sum(m["points"] for m in valid_matches)
@@ -130,7 +142,7 @@ class ProfileAnalyzer:
                     "weight": elem["weight"],
                 }
             )
-        
+
         # Debug logging
         print(f"\n=== BUILDING LLM PROMPT ===")
         print(f"Profile name: {profile.get('name', 'Unknown')}")

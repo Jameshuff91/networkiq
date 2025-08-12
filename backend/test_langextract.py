@@ -42,13 +42,14 @@ prompt = """Extract the following from this resume:
 
 Return as JSON."""
 
+
 def test_basic_extraction():
     """Test basic extraction with LangExtract"""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         print("GEMINI_API_KEY not found")
         return
-    
+
     # Create an example for better extraction
     example_text = """Jane Smith
 jane@example.com
@@ -62,23 +63,25 @@ Apple - Product Manager (2015-2020)
 
 SKILLS
 Python, SQL"""
-    
+
     example_output = {
         "email": "jane@example.com",
         "phone": "(555) 987-6543",
         "education": [
-            {"institution": "Harvard University", "degree": "BA", "field": "Economics", "year": "2015"}
+            {
+                "institution": "Harvard University",
+                "degree": "BA",
+                "field": "Economics",
+                "year": "2015",
+            }
         ],
         "companies": ["Apple"],
         "skills": ["Python", "SQL"],
-        "certifications": []
+        "certifications": [],
     }
-    
-    example = ExampleData(
-        input_text=example_text,
-        output=example_output
-    )
-    
+
+    example = ExampleData(input_text=example_text, output=example_output)
+
     try:
         result = extract(
             text_or_documents=test_text,
@@ -87,25 +90,27 @@ Python, SQL"""
             model_id="gemini-1.5-flash",
             api_key=api_key,
             format_type="json",
-            debug=False
+            debug=False,
         )
-        
+
         print("Extraction successful!")
         print("Result type:", type(result))
-        
+
         # Access the extracted data
-        if hasattr(result, 'data'):
+        if hasattr(result, "data"):
             print("\nExtracted data:")
             print(result.data)
-        
+
         # Check for source grounding
-        if hasattr(result, 'spans'):
+        if hasattr(result, "spans"):
             print("\nSource spans available:", len(result.spans) if result.spans else 0)
-            
+
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     test_basic_extraction()

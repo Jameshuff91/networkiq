@@ -56,93 +56,94 @@ ACHIEVEMENTS
 - Published paper on distributed ML systems at NeurIPS 2022
 """
 
+
 def test_langextract_parsing():
     """Test parsing with LangExtract enabled"""
     print("Testing resume parsing with LangExtract...")
     print("-" * 50)
-    
+
     # Create parser with LangExtract enabled
     parser = ResumeParser(use_gemini=True, use_langextract=True)
-    
+
     # Parse the test resume
-    result = parser.parse_resume(
-        test_resume.encode('utf-8'),
-        "test_resume.txt"
-    )
-    
+    result = parser.parse_resume(test_resume.encode("utf-8"), "test_resume.txt")
+
     # Display results
     print("\n📊 PARSING RESULTS:")
     print("-" * 50)
-    
+
     if result.get("extraction_method") == "langextract":
         print("✅ Successfully parsed with LangExtract!")
     else:
         print(f"⚠️ Parsed with: {result.get('extraction_method', 'unknown')}")
-    
+
     print(f"\n📧 Email: {result.get('email')}")
     print(f"📱 Phone: {result.get('phone')}")
-    
+
     print("\n🎓 Education:")
-    for edu in result.get('education', []):
+    for edu in result.get("education", []):
         if isinstance(edu, dict):
-            print(f"  - {edu.get('institution', 'Unknown')}: {edu.get('degree', '')} {edu.get('field', '')}")
+            print(
+                f"  - {edu.get('institution', 'Unknown')}: {edu.get('degree', '')} {edu.get('field', '')}"
+            )
         else:
             print(f"  - {edu}")
-    
+
     print("\n🏢 Companies:")
-    for company in result.get('companies', []):
+    for company in result.get("companies", []):
         print(f"  - {company}")
-    
+
     print("\n🎖️ Military Service:")
-    military = result.get('military_service')
+    military = result.get("military_service")
     if military:
         print(f"  - Branch: {military.get('branch', 'N/A')}")
         print(f"  - Academy: {military.get('academy', 'N/A')}")
         print(f"  - Veteran: {military.get('veteran', False)}")
     else:
         print("  - None detected")
-    
+
     print("\n💻 Skills:")
-    for skill in result.get('skills', [])[:10]:
+    for skill in result.get("skills", [])[:10]:
         print(f"  - {skill}")
-    
+
     print("\n🏆 Certifications:")
-    for cert in result.get('certifications', []):
+    for cert in result.get("certifications", []):
         print(f"  - {cert}")
-    
+
     print("\n🔍 Search Elements (Top 10):")
-    for element in result.get('search_elements', [])[:10]:
-        print(f"  - [{element['category']}] {element['display']} (weight: {element['weight']})")
-    
+    for element in result.get("search_elements", [])[:10]:
+        print(
+            f"  - [{element['category']}] {element['display']} (weight: {element['weight']})"
+        )
+
     print("\n" + "=" * 50)
     print(f"Extraction confidence: {result.get('extraction_confidence', 'N/A')}")
     print(f"Total search elements: {len(result.get('search_elements', []))}")
+
 
 def test_fallback_parsing():
     """Test parsing with LangExtract disabled"""
     print("\n\nTesting fallback parsing (LangExtract disabled)...")
     print("-" * 50)
-    
+
     # Create parser without LangExtract
     parser = ResumeParser(use_gemini=True, use_langextract=False)
-    
+
     # Parse the test resume
-    result = parser.parse_resume(
-        test_resume.encode('utf-8'),
-        "test_resume.txt"
-    )
-    
+    result = parser.parse_resume(test_resume.encode("utf-8"), "test_resume.txt")
+
     print(f"Parsed with: {result.get('extraction_method', 'gemini/regex')}")
     print(f"Found {len(result.get('companies', []))} companies")
     print(f"Found {len(result.get('skills', []))} skills")
     print(f"Found {len(result.get('search_elements', []))} search elements")
+
 
 if __name__ == "__main__":
     # Check for API key
     if not os.getenv("GEMINI_API_KEY"):
         print("❌ Error: GEMINI_API_KEY environment variable not set")
         sys.exit(1)
-    
+
     try:
         test_langextract_parsing()
         test_fallback_parsing()
@@ -150,4 +151,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Error during testing: {e}")
         import traceback
+
         traceback.print_exc()

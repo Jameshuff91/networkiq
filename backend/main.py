@@ -13,6 +13,7 @@ import json
 import pickle
 from pathlib import Path
 from dotenv import load_dotenv
+
 # import openai  # Deprecated - using Gemini instead
 from pydantic import BaseModel, EmailStr
 import jwt
@@ -179,7 +180,6 @@ async def root():
     return {"message": "NetworkIQ API v1.0.0", "status": "operational"}
 
 
-
 @app.post("/api/auth/signup")
 async def signup(user_data: UserSignup):
     """Create new user account"""
@@ -299,7 +299,9 @@ async def upload_resume(
                 "search_elements": parsed_data.get("search_elements", []),
             }
             # Also store search_elements at top level for backwards compatibility
-            users_db[user_id]["search_elements"] = parsed_data.get("search_elements", [])
+            users_db[user_id]["search_elements"] = parsed_data.get(
+                "search_elements", []
+            )
             save_db("users", users_db)
 
         return {
@@ -530,7 +532,7 @@ async def analyze_profiles_batch(
     # Check if Gemini API is configured
     if not GEMINI_API_KEY:
         return {"error": "LLM analysis not available"}
-    
+
     # Get user's search elements from their resume
     user_id = current_user["id"]
     user = users_db.get(user_id, {})
@@ -540,10 +542,10 @@ async def analyze_profiles_batch(
         # Try getting from background object
         background = user.get("background", {})
         search_elements = background.get("search_elements", [])
-    
+
     if not search_elements:
         return {"error": "No resume data found. Please upload your resume first."}
-    
+
     # Check usage limits for free tier - count batch as multiple scores
     today = datetime.now(UTC).date().isoformat()
     if user_id not in usage_db:
@@ -551,20 +553,24 @@ async def analyze_profiles_batch(
     if today not in usage_db[user_id]:
         usage_db[user_id][today] = {"scores": 0, "messages": 0}
     daily_usage = usage_db[user_id][today]
-    
+
     user_tier = users_db.get(user_id, {}).get("tier", "free")
     profiles_count = len(batch_request.profiles)
-    
-    if IS_PRODUCTION and user_tier == "free" and daily_usage["scores"] + profiles_count > 10:
+
+    if (
+        IS_PRODUCTION
+        and user_tier == "free"
+        and daily_usage["scores"] + profiles_count > 10
+    ):
         raise HTTPException(
             status_code=429,
             detail=f"Batch analysis would exceed daily limit. Need {profiles_count} scores but only {10 - daily_usage['scores']} remaining.",
         )
-    
+
     try:
         # Initialize the LLM analyzer
         analyzer = ProfileAnalyzer(api_key=GEMINI_API_KEY)
-        
+
         batch_results = []
         for profile_data in batch_request.profiles:
             try:
@@ -572,48 +578,54 @@ async def analyze_profiles_batch(
                 analysis = analyzer.analyze_profile(
                     profile_data=profile_data, user_search_elements=search_elements
                 )
-                
+
                 # Generate message
                 message = analyzer.generate_enhanced_message(
                     profile=profile_data,
                     analysis=analysis,
                     user_background=search_elements,
                 )
-                
-                batch_results.append({
-                    "url": profile_data.get("url", ""),
-                    "name": profile_data.get("name", ""),
-                    "score": analysis["score"],
-                    "tier": analysis["tier"],
-                    "matches": analysis["matches"],
-                    "insights": analysis.get("insights", []),
-                    "hidden_connections": analysis.get("hidden_connections", []),
-                    "recommendation": analysis.get("recommendation", ""),
-                    "message": message,
-                })
-                
+
+                batch_results.append(
+                    {
+                        "url": profile_data.get("url", ""),
+                        "name": profile_data.get("name", ""),
+                        "score": analysis["score"],
+                        "tier": analysis["tier"],
+                        "matches": analysis["matches"],
+                        "insights": analysis.get("insights", []),
+                        "hidden_connections": analysis.get("hidden_connections", []),
+                        "recommendation": analysis.get("recommendation", ""),
+                        "message": message,
+                    }
+                )
+
             except Exception as e:
                 # Individual profile failed, add error result
-                print(f"Failed to analyze profile {profile_data.get('name', 'unknown')}: {e}")
-                batch_results.append({
-                    "url": profile_data.get("url", ""),
-                    "name": profile_data.get("name", ""),
-                    "error": str(e),
-                    "score": 0,
-                    "tier": "low",
-                    "matches": [],
-                })
-        
+                print(
+                    f"Failed to analyze profile {profile_data.get('name', 'unknown')}: {e}"
+                )
+                batch_results.append(
+                    {
+                        "url": profile_data.get("url", ""),
+                        "name": profile_data.get("name", ""),
+                        "error": str(e),
+                        "score": 0,
+                        "tier": "low",
+                        "matches": [],
+                    }
+                )
+
         # Track usage
         daily_usage["scores"] += profiles_count
         save_db("usage", usage_db)
-        
+
         return {
             "results": batch_results,
             "processed_count": len(batch_results),
             "success_count": len([r for r in batch_results if "error" not in r]),
         }
-        
+
     except Exception as e:
         print(f"Batch LLM analysis failed: {e}")
         raise HTTPException(status_code=500, detail="Batch analysis failed")
@@ -625,7 +637,9 @@ async def generate_message(
 ):
     """Generate personalized LinkedIn message"""
     # Check if user is Pro (check both possible field names)
-    user_tier = current_user.get("subscription_tier") or current_user.get("tier", "free")
+    user_tier = current_user.get("subscription_tier") or current_user.get(
+        "tier", "free"
+    )
     if user_tier == "free":
         # Check daily limit
         user_id = current_user["id"]
@@ -651,7 +665,7 @@ async def generate_message(
     try:
         profile = message_data.profile_data
         score_data = message_data.score_data
-        
+
         # Get user's search elements for context
         user_id = current_user["id"]
         user = users_db.get(user_id, {})
@@ -666,13 +680,14 @@ async def generate_message(
             try:
                 # Initialize the ProfileAnalyzer
                 from profile_analyzer import ProfileAnalyzer
+
                 analyzer = ProfileAnalyzer(api_key=GEMINI_API_KEY)
-                
+
                 # Generate enhanced message with user context
                 message_text = analyzer.generate_enhanced_message(
                     profile=profile,
                     analysis=score_data,  # Contains matches, insights, etc.
-                    user_background=search_elements
+                    user_background=search_elements,
                 )
             except Exception as gemini_error:
                 print(f"Gemini message generation failed: {gemini_error}")
@@ -680,20 +695,26 @@ async def generate_message(
                 raise gemini_error
         else:
             # Use template-based messages as fallback
-            name = profile.get("name", "there").split()[0] if profile.get("name") else "there"
+            name = (
+                profile.get("name", "there").split()[0]
+                if profile.get("name")
+                else "there"
+            )
             company = profile.get("company", "your company")
             matches = score_data.get("matches", [])
-            
+
             # Extract match text from complex objects
             match_texts = []
             for match in matches[:2]:  # Use top 2 matches
                 if isinstance(match, str):
                     match_texts.append(match)
                 elif isinstance(match, dict):
-                    match_texts.append(match.get("matches_element", match.get("text", "")))
-            
+                    match_texts.append(
+                        match.get("matches_element", match.get("text", ""))
+                    )
+
             connection_point = match_texts[0] if match_texts else "shared interests"
-            
+
             templates = [
                 f"Hi {name}, I noticed we both have experience with {connection_point}. Would love to connect and exchange insights about {company}.",
                 f"Hi {name}, your experience at {company} caught my attention. As someone with background in {connection_point}, I'd value connecting with you.",
