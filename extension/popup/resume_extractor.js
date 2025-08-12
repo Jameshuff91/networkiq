@@ -9,7 +9,7 @@ class ResumeExtractor {
    */
   static async extractText(file) {
     const fileType = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    
+
     if (fileType === '.txt') {
       return await file.text();
     } else if (fileType === '.pdf' || fileType === '.docx' || fileType === '.doc') {
@@ -17,7 +17,7 @@ class ResumeExtractor {
       // But first try to get just the text content
       return await this.extractTextFromBinary(file);
     }
-    
+
     throw new Error('Unsupported file type');
   }
 
@@ -56,7 +56,7 @@ class ResumeExtractor {
 
     // Convert to lowercase for matching
     const lowerText = text.toLowerCase();
-    
+
     // Extract education - look for universities and academies
     const educationPatterns = [
       /United States Air Force Academy/gi,
@@ -182,13 +182,13 @@ class ResumeExtractor {
           wordFreq[word] = (wordFreq[word] || 0) + 1;
         }
       });
-      
+
       // Get top keywords by frequency
       const sortedWords = Object.entries(wordFreq)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 20)
         .map(([word]) => word);
-      
+
       elements.keywords = sortedWords;
     }
 
@@ -200,12 +200,12 @@ class ResumeExtractor {
    */
   static createSearchElements(extractedElements) {
     const searchElements = [];
-    
+
     // Add education with high weight
     extractedElements.education.forEach(edu => {
       // Extra high weight for military academies
-      const weight = edu.toLowerCase().includes('academy') || 
-                     edu.toLowerCase().includes('usafa') || 
+      const weight = edu.toLowerCase().includes('academy') ||
+                     edu.toLowerCase().includes('usafa') ||
                      edu.toLowerCase().includes('west point') ? 40 : 30;
       searchElements.push({
         value: edu.toLowerCase(),

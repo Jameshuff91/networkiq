@@ -16,7 +16,7 @@ class NetworkScorer {
   async loadUserData() {
     // Load search elements from storage
     const result = await chrome.storage.local.get(['resumeData', 'searchElements']);
-    
+
     if (result.searchElements) {
       this.searchElements = result.searchElements;
     } else if (result.resumeData && result.resumeData.search_elements) {
@@ -34,170 +34,170 @@ class NetworkScorer {
     return [
       // Military connections (high weight)
       {
-        category: "military",
-        value: "veteran",
+        category: 'military',
+        value: 'veteran',
         weight: 30,
-        display: "Military Veteran"
+        display: 'Military Veteran'
       },
       {
-        category: "military",
-        value: "green beret",
+        category: 'military',
+        value: 'green beret',
         weight: 40,
-        display: "Special Forces"
+        display: 'Special Forces'
       },
       {
-        category: "military",
-        value: "special forces",
+        category: 'military',
+        value: 'special forces',
         weight: 40,
-        display: "Special Forces"
+        display: 'Special Forces'
       },
       {
-        category: "military",
-        value: "army",
+        category: 'military',
+        value: 'army',
         weight: 25,
-        display: "U.S. Army"
+        display: 'U.S. Army'
       },
       {
-        category: "military",
-        value: "navy",
+        category: 'military',
+        value: 'navy',
         weight: 25,
-        display: "U.S. Navy"
+        display: 'U.S. Navy'
       },
       {
-        category: "military",
-        value: "air force",
+        category: 'military',
+        value: 'air force',
         weight: 25,
-        display: "U.S. Air Force"
+        display: 'U.S. Air Force'
       },
       {
-        category: "military",
-        value: "marine",
+        category: 'military',
+        value: 'marine',
         weight: 25,
-        display: "U.S. Marines"
+        display: 'U.S. Marines'
       },
-      
+
       // Top tech companies (medium-high weight)
       {
-        category: "company",
-        value: "palantir",
+        category: 'company',
+        value: 'palantir',
         weight: 25,
-        display: "Palantir Technologies"
+        display: 'Palantir Technologies'
       },
       {
-        category: "company",
-        value: "google",
+        category: 'company',
+        value: 'google',
         weight: 25,
-        display: "Google"
+        display: 'Google'
       },
       {
-        category: "company",
-        value: "meta",
+        category: 'company',
+        value: 'meta',
         weight: 25,
-        display: "Meta"
+        display: 'Meta'
       },
       {
-        category: "company",
-        value: "microsoft",
+        category: 'company',
+        value: 'microsoft',
         weight: 20,
-        display: "Microsoft"
+        display: 'Microsoft'
       },
       {
-        category: "company",
-        value: "amazon",
+        category: 'company',
+        value: 'amazon',
         weight: 20,
-        display: "Amazon"
+        display: 'Amazon'
       },
       {
-        category: "company",
-        value: "apple",
+        category: 'company',
+        value: 'apple',
         weight: 20,
-        display: "Apple"
+        display: 'Apple'
       },
-      
+
       // Elite universities (high weight)
       {
-        category: "education",
-        value: "stanford",
+        category: 'education',
+        value: 'stanford',
         weight: 30,
-        display: "Stanford University"
+        display: 'Stanford University'
       },
       {
-        category: "education",
-        value: "mit",
+        category: 'education',
+        value: 'mit',
         weight: 30,
-        display: "MIT"
+        display: 'MIT'
       },
       {
-        category: "education",
-        value: "harvard",
+        category: 'education',
+        value: 'harvard',
         weight: 30,
-        display: "Harvard University"
+        display: 'Harvard University'
       },
       {
-        category: "education",
-        value: "columbia",
+        category: 'education',
+        value: 'columbia',
         weight: 25,
-        display: "Columbia University"
+        display: 'Columbia University'
       },
-      
+
       // Government/Defense
       {
-        category: "company",
-        value: "dod",
+        category: 'company',
+        value: 'dod',
         weight: 20,
-        display: "Department of Defense"
+        display: 'Department of Defense'
       },
       {
-        category: "company",
-        value: "cia",
+        category: 'company',
+        value: 'cia',
         weight: 25,
-        display: "CIA"
+        display: 'CIA'
       },
       {
-        category: "company",
-        value: "nsa",
+        category: 'company',
+        value: 'nsa',
         weight: 25,
-        display: "NSA"
+        display: 'NSA'
       },
-      
+
       // Key roles
       {
-        category: "role",
-        value: "software engineer",
+        category: 'role',
+        value: 'software engineer',
         weight: 15,
-        display: "Software Engineering"
+        display: 'Software Engineering'
       },
       {
-        category: "role",
-        value: "product manager",
+        category: 'role',
+        value: 'product manager',
         weight: 15,
-        display: "Product Management"
+        display: 'Product Management'
       },
       {
-        category: "role",
-        value: "data scientist",
+        category: 'role',
+        value: 'data scientist',
         weight: 15,
-        display: "Data Science"
+        display: 'Data Science'
       },
-      
+
       // Key skills
       {
-        category: "skill",
-        value: "machine learning",
+        category: 'skill',
+        value: 'machine learning',
         weight: 10,
-        display: "Machine Learning"
+        display: 'Machine Learning'
       },
       {
-        category: "skill",
-        value: "artificial intelligence",
+        category: 'skill',
+        value: 'artificial intelligence',
         weight: 10,
-        display: "AI"
+        display: 'AI'
       },
       {
-        category: "skill",
-        value: "leadership",
+        category: 'skill',
+        value: 'leadership',
         weight: 10,
-        display: "Leadership"
+        display: 'Leadership'
       }
     ];
   }
@@ -230,14 +230,14 @@ class NetworkScorer {
     const profileExperience = (profile.experience || '').toLowerCase();
     const profileEducation = (profile.education || '').toLowerCase();
     const profileMutual = (profile.mutualConnections || '').toLowerCase();
-    
+
     // Combine all text for searching - include all available fields
     const fullText = `${profileText} ${profileName} ${profileHeadline} ${profileAbout} ${profileCompany} ${profileLocation} ${profileExperience} ${profileEducation} ${profileMutual}`.replace(/\s+/g, ' ').trim();
-    
+
     // Check if profile has military background (broader matching)
     const profileHasMilitary = this.hasMilitaryBackground(fullText);
-    const userHasMilitary = this.searchElements.some(el => 
-      el.category === 'military' || 
+    const userHasMilitary = this.searchElements.some(el =>
+      el.category === 'military' ||
       this.isMilitaryRelated(el.value || el.text || '')
     );
 
@@ -249,15 +249,15 @@ class NetworkScorer {
       console.log(`  - Contains "united states air force academy": ${fullText.includes('united states air force academy')}`);
       console.log(`  - Text sample: "${fullText.substring(0, 300)}"`);
     }
-    
+
     // Score based on search elements
     for (const element of this.searchElements) {
       const searchValue = (element.value || element.text || '').toLowerCase();
       const elementCategory = element.category || '';
-      
+
       let isMatch = false;
       let matchReason = '';
-      
+
       // Special handling for military - brotherhood matching
       if (elementCategory === 'military' || this.isMilitaryRelated(searchValue)) {
         // If user has military background and profile has military, it's a match
@@ -266,7 +266,7 @@ class NetworkScorer {
           matchReason = 'Military Brotherhood';
           console.log(`NetworkIQ: Military brotherhood match for ${profile.name} - both have military backgrounds`);
         }
-      } 
+      }
       // For education and company - exact matching required
       else if (elementCategory === 'education' || elementCategory === 'company') {
         isMatch = this.containsMatch(fullText, searchValue);
@@ -281,19 +281,19 @@ class NetworkScorer {
           matchReason = 'Keyword match';
         }
       }
-      
+
       // Add score if matched
       if (isMatch) {
         totalScore += element.weight;
-        
+
         // Debug all matches for troubleshooting
         console.log(`NetworkIQ: Found match "${searchValue}" (weight: ${element.weight}, reason: ${matchReason}) for ${profile.name}`);
-        
+
         // Track breakdown by category
         if (breakdown[element.category] !== undefined) {
           breakdown[element.category] += element.weight;
         }
-        
+
         // Add to matches for display (only if we have valid text)
         const matchText = element.display || element.value || element.text;
         if (matchText && matchText !== 'undefined') {
@@ -336,22 +336,22 @@ class NetworkScorer {
     // Convert both to lowercase for case-insensitive matching
     text = text.toLowerCase();
     searchTerm = searchTerm.toLowerCase();
-    
+
     // Handle multi-word search terms
     const words = searchTerm.split(/\s+/);
-    
+
     // For single words, do a simple contains check
     if (words.length === 1) {
       return text.includes(searchTerm);
     }
-    
+
     // For multi-word terms, check if all words are present
     // This handles cases like "air force academy" or "c3 ai"
     const allWordsPresent = words.every(word => text.includes(word));
-    
+
     // Also check if the exact phrase exists
     const exactPhrasePresent = text.includes(searchTerm);
-    
+
     // Return true if either condition is met
     return allWordsPresent || exactPhrasePresent;
   }
@@ -372,7 +372,7 @@ class NetworkScorer {
       'colonel', 'general', 'admiral', 'captain', 'major', 'lieutenant',
       'sergeant', 'corporal', 'specialist'
     ];
-    
+
     const lowerTerm = term.toLowerCase();
     return militaryKeywords.some(keyword => lowerTerm.includes(keyword));
   }
@@ -387,34 +387,34 @@ class NetworkScorer {
       // Direct military service indicators
       'veteran', 'military service', 'armed forces', 'active duty',
       'military experience', 'former military', 'ex-military',
-      
+
       // Service branches (must be in context of service)
       'air force veteran', 'army veteran', 'navy veteran', 'marine veteran',
       'coast guard veteran', 'space force veteran',
       'served in the', 'service member',
-      
+
       // Military academies
       'west point', 'naval academy', 'air force academy', 'usafa',
       'citadel', 'vmi', 'norwich university',
-      
+
       // Special forces and units
-      'special forces', 'green beret', 'navy seal', 'army ranger', 
+      'special forces', 'green beret', 'navy seal', 'army ranger',
       'airborne', 'special operations', 'special ops',
-      
+
       // Military roles/titles
       'commissioned officer', 'enlisted', 'military officer',
       'deployment', 'combat veteran', 'war veteran',
-      
+
       // Specific ranks (with context)
       'colonel ret', 'general ret', 'admiral ret', 'captain usn',
       'major usa', 'lieutenant col', 'sergeant major', 'master sergeant'
     ];
-    
+
     const lowerText = text.toLowerCase();
-    
+
     // Check for direct military indicators
     const hasDirectMilitary = militaryIndicators.some(indicator => lowerText.includes(indicator));
-    
+
     // Additional patterns that indicate military service
     const militaryPatterns = [
       /\b(army|navy|air force|marine|coast guard)\s+(veteran|vet|retired|ret\.?)\b/,
@@ -424,9 +424,9 @@ class NetworkScorer {
       /\busaf\b/, /\busmc\b/, /\buscg\b/, /\busn\b/, /\busa\b/,  // Military abbreviations
       /\b\d+\s*years?\s+(military|army|navy|air force|marine)/
     ];
-    
+
     const hasPatternMatch = militaryPatterns.some(pattern => pattern.test(lowerText));
-    
+
     return hasDirectMilitary || hasPatternMatch;
   }
 
@@ -466,14 +466,14 @@ class NetworkScorer {
    */
   getTierEmoji(tier) {
     switch (tier) {
-      case 'high':
-        return '🔥';
-      case 'medium':
-        return '⭐';
-      case 'low':
-        return '💡';
-      default:
-        return '📊';
+    case 'high':
+      return '🔥';
+    case 'medium':
+      return '⭐';
+    case 'low':
+      return '💡';
+    default:
+      return '📊';
     }
   }
 
@@ -483,8 +483,8 @@ class NetworkScorer {
    * @returns {string}
    */
   getScoreColor(score) {
-    if (score >= 70) return '#00A86B';  // Green
-    if (score >= 40) return '#FFA500';  // Orange
+    if (score >= 70) {return '#00A86B';}  // Green
+    if (score >= 40) {return '#FFA500';}  // Orange
     return '#64748B';  // Gray
   }
 
@@ -497,14 +497,14 @@ class NetworkScorer {
   generateMessage(profile, scoreData) {
     const name = profile.name?.split(' ')[0] || 'there';
     const connections = scoreData.matches || [];
-    
+
     // Extract text from match objects
     const getMatchText = (match) => {
-      if (!match) return null;
-      if (typeof match === 'string') return match;
+      if (!match) {return null;}
+      if (typeof match === 'string') {return match;}
       return match.text || match.display || match.value || null;
     };
-    
+
     // Build message based on score tier
     if (scoreData.tier === 'high') {
       const commonality = getMatchText(connections[0]) || 'your background';
@@ -523,7 +523,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'updateScoringElements' && message.data) {
     // Update search elements when resume is uploaded
     const scorer = new NetworkScorer();
-    
+
     // Extract search elements from resume data
     if (message.data.search_elements && Array.isArray(message.data.search_elements)) {
       scorer.updateSearchElements(message.data.search_elements);

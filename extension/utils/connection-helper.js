@@ -39,11 +39,11 @@ class ConnectionHelper {
         // Send the message
         chrome.runtime.sendMessage(message, (response) => {
           clearTimeout(timeout);
-          
+
           // Check for chrome.runtime.lastError
           if (chrome.runtime.lastError) {
             console.warn('NetworkIQ: Message error:', chrome.runtime.lastError);
-            
+
             // Handle specific error cases
             if (chrome.runtime.lastError.message?.includes('Receiving end does not exist')) {
               reject(new Error('Background script not available - extension may be updating'));
@@ -139,7 +139,7 @@ class ConnectionHelper {
    */
   static handleContextInvalidation() {
     console.log('NetworkIQ: Handling context invalidation...');
-    
+
     // Show user notification if possible
     if (document.body) {
       const notification = document.createElement('div');
@@ -171,7 +171,7 @@ class ConnectionHelper {
         ">Refresh Now</button>
       `;
       document.body.appendChild(notification);
-      
+
       // Auto-remove after 10 seconds
       setTimeout(() => {
         if (notification.parentNode) {

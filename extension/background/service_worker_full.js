@@ -26,7 +26,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     // chrome.tabs.create({
     //   url: 'https://networkiq.ai/welcome'
     // });
-    
+
     // Set default settings
     chrome.storage.sync.set({
       settings: {
@@ -35,10 +35,10 @@ chrome.runtime.onInstalled.addListener((details) => {
         autoGenerate: false
       }
     });
-    
+
     // Track installation (comment out until analytics endpoint exists)
     // trackEvent('extension_installed');
-    
+
     console.log('NetworkIQ extension installed successfully!');
   }
 });
@@ -46,29 +46,29 @@ chrome.runtime.onInstalled.addListener((details) => {
 // Handle messages from content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.action) {
-    case 'api_call':
-      handleAPICall(request.endpoint, request.data)
-        .then(sendResponse)
-        .catch(error => sendResponse({ error: error.message }));
-      return true; // Will respond asynchronously
-      
-    case 'track':
-      // trackEvent(request.event, request.data);  // Disabled until analytics endpoint exists
-      console.log('Event tracked:', request.event, request.data);
-      sendResponse({ success: true });
-      break;
-      
-    case 'check_auth':
-      sendResponse({ isAuthenticated: userState.isAuthenticated, subscription: userState.subscription });
-      break;
-      
-    case 'open_checkout':
-      openStripeCheckout(request.priceId);
-      sendResponse({ success: true });
-      break;
-      
-    default:
-      sendResponse({ error: 'Unknown action' });
+  case 'api_call':
+    handleAPICall(request.endpoint, request.data)
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true; // Will respond asynchronously
+
+  case 'track':
+    // trackEvent(request.event, request.data);  // Disabled until analytics endpoint exists
+    console.log('Event tracked:', request.event, request.data);
+    sendResponse({ success: true });
+    break;
+
+  case 'check_auth':
+    sendResponse({ isAuthenticated: userState.isAuthenticated, subscription: userState.subscription });
+    break;
+
+  case 'open_checkout':
+    openStripeCheckout(request.priceId);
+    sendResponse({ success: true });
+    break;
+
+  default:
+    sendResponse({ error: 'Unknown action' });
   }
 });
 
@@ -78,21 +78,21 @@ async function handleAPICall(endpoint, data) {
     const headers = {
       'Content-Type': 'application/json'
     };
-    
+
     // Add auth token if available
     if (userState.token) {
       headers['Authorization'] = `Bearer ${userState.token}`;
     }
-    
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(data)
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       // Handle specific error codes
       if (response.status === 429) {
         return {
@@ -116,21 +116,21 @@ async function handleAPICall(endpoint, data) {
           code: 'SERVICE_UNAVAILABLE'
         };
       }
-      
+
       throw new Error(errorData.detail || `API error: ${response.status}`);
     }
-    
+
     const result = await response.json();
-    
+
     // Update usage tracking
     if (endpoint === '/profiles/score' || endpoint === '/messages/generate') {
       updateUsageTracking();
     }
-    
+
     return result;
   } catch (error) {
     console.error('API call failed:', error);
-    
+
     // Network error handling
     if (error.message.includes('Failed to fetch')) {
       return {
@@ -139,7 +139,7 @@ async function handleAPICall(endpoint, data) {
         code: 'NETWORK_ERROR'
       };
     }
-    
+
     return {
       error: true,
       message: error.message,
@@ -158,7 +158,7 @@ async function trackEvent(event, data = {}) {
       subscription: userState.subscription,
       timestamp: new Date().toISOString()
     };
-    
+
     // Send to analytics API
     await fetch(`${API_BASE_URL}/analytics/track`, {
       method: 'POST',
@@ -170,17 +170,17 @@ async function trackEvent(event, data = {}) {
         data: eventData
       })
     });
-    
+
     // Also store locally for offline analytics
     chrome.storage.local.get(['analytics'], (result) => {
       const analytics = result.analytics || [];
       analytics.push({ event, data: eventData });
-      
+
       // Keep only last 100 events
       if (analytics.length > 100) {
         analytics.shift();
       }
-      
+
       chrome.storage.local.set({ analytics });
     });
   } catch (error) {
@@ -191,19 +191,19 @@ async function trackEvent(event, data = {}) {
 // Update usage tracking
 function updateUsageTracking() {
   const today = new Date().toDateString();
-  
+
   chrome.storage.local.get(['usage', 'lastReset'], (result) => {
     let usage = result.usage || {};
-    
+
     // Reset if new day
     if (result.lastReset !== today) {
       usage = {};
     }
-    
+
     // Increment usage
     const currentCount = usage[today] || 0;
     usage[today] = currentCount + 1;
-    
+
     chrome.storage.local.set({
       usage: usage,
       lastReset: today
@@ -225,23 +225,23 @@ function openStripeCheckout(priceId) {
       userId: userState.userId
     })
   })
-  .then(response => response.json())
-  .then(data => {
+    .then(response => response.json())
+    .then(data => {
     // Open Stripe checkout in new tab
-    chrome.tabs.create({
-      url: data.checkoutUrl
+      chrome.tabs.create({
+        url: data.checkoutUrl
+      });
+    })
+    .catch(error => {
+      console.error('Failed to create checkout session:', error);
     });
-  })
-  .catch(error => {
-    console.error('Failed to create checkout session:', error);
-  });
 }
 
 // Check authentication status
 async function checkAuthStatus() {
   try {
     const result = await chrome.storage.sync.get(['token', 'userId', 'email']);
-    
+
     if (result.token) {
       // Verify token with API
       const response = await fetch(`${API_BASE_URL}/auth/verify`, {
@@ -249,7 +249,7 @@ async function checkAuthStatus() {
           'Authorization': `Bearer ${result.token}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         userState = {
@@ -259,7 +259,7 @@ async function checkAuthStatus() {
           userId: data.userId,
           token: result.token
         };
-        
+
         // Update badge based on subscription
         updateExtensionBadge();
       } else {
@@ -308,24 +308,24 @@ chrome.alarms.create('syncData', { periodInMinutes: 5 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   switch (alarm.name) {
-    case 'checkAuth':
-      checkAuthStatus();
-      break;
-    case 'syncData':
-      syncLocalData();
-      break;
+  case 'checkAuth':
+    checkAuthStatus();
+    break;
+  case 'syncData':
+    syncLocalData();
+    break;
   }
 });
 
 // Sync local data with server
 async function syncLocalData() {
-  if (!userState.isAuthenticated) return;
-  
+  if (!userState.isAuthenticated) {return;}
+
   try {
     // Get local analytics
     const result = await chrome.storage.local.get(['analytics']);
     const analytics = result.analytics || [];
-    
+
     if (analytics.length > 0) {
       // Send to server
       await fetch(`${API_BASE_URL}/analytics/batch`, {
@@ -336,7 +336,7 @@ async function syncLocalData() {
         },
         body: JSON.stringify({ events: analytics })
       });
-      
+
       // Clear local analytics
       chrome.storage.local.set({ analytics: [] });
     }

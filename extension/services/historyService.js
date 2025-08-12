@@ -22,37 +22,37 @@ class HistoryService {
       return new Promise((resolve, reject) => {
         try {
           const request = indexedDB.open(this.dbName, this.dbVersion);
-          
+
           request.onerror = () => {
             console.warn('NetworkIQ: IndexedDB error, falling back to localStorage:', request.error);
             this.useLocalStorage = true;
             resolve(); // Don't reject, just use fallback
           };
-          
+
           request.onsuccess = () => {
             this.db = request.result;
             this.useLocalStorage = false;
             resolve();
           };
-          
+
           request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            
+
             // Store only privacy-compliant data
             if (!db.objectStoreNames.contains('scores')) {
-              const scoresStore = db.createObjectStore('scores', { 
-                keyPath: 'id', 
-                autoIncrement: true 
+              const scoresStore = db.createObjectStore('scores', {
+                keyPath: 'id',
+                autoIncrement: true
               });
               scoresStore.createIndex('timestamp', 'timestamp', { unique: false });
               scoresStore.createIndex('date', 'date', { unique: false });
               scoresStore.createIndex('tier', 'tier', { unique: false });
             }
-            
+
             // Daily aggregated stats (no personal data)
             if (!db.objectStoreNames.contains('dailyStats')) {
-              const statsStore = db.createObjectStore('dailyStats', { 
-                keyPath: 'date' 
+              const statsStore = db.createObjectStore('dailyStats', {
+                keyPath: 'date'
               });
             }
           };
@@ -74,7 +74,7 @@ class HistoryService {
     if (this.useLocalStorage) {
       return this.addScoreToLocalStorage(scoreData);
     }
-    
+
     // Store only non-identifying information
     const privacyData = {
       timestamp: new Date().toISOString(),
@@ -87,12 +87,12 @@ class HistoryService {
       hasMessage: !!scoreData.message,
       source: scoreData.source || 'individual'
     };
-    
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['scores'], 'readwrite');
       const store = transaction.objectStore('scores');
       const request = store.add(privacyData);
-      
+
       request.onsuccess = () => {
         this.updateDailyStats(privacyData);
         resolve(request.result);
@@ -111,7 +111,7 @@ class HistoryService {
       location: 0,
       other: 0
     };
-    
+
     matches.forEach(match => {
       // Handle different match formats
       let matchText = '';
@@ -120,7 +120,7 @@ class HistoryService {
       } else if (match && typeof match === 'object') {
         // Handle match objects from LLM with properties like matches_element, category, etc.
         matchText = (match.matches_element || match.text || match.found_in_profile || '').toLowerCase();
-        
+
         // Use category if available for more accurate categorization
         if (match.category) {
           const category = match.category.toLowerCase();
@@ -139,7 +139,7 @@ class HistoryService {
           }
         }
       }
-      
+
       // Fallback to text-based categorization
       if (matchText.includes('university') || matchText.includes('college') || matchText.includes('academy')) {
         categories.education++;
@@ -155,18 +155,18 @@ class HistoryService {
         categories.other++;
       }
     });
-    
+
     return categories;
   }
 
   async updateDailyStats(scoreData) {
     const today = new Date().toLocaleDateString();
-    
+
     const transaction = this.db.transaction(['dailyStats'], 'readwrite');
     const store = transaction.objectStore('dailyStats');
-    
+
     const getRequest = store.get(today);
-    
+
     getRequest.onsuccess = () => {
       const stats = getRequest.result || {
         date: today,
@@ -177,18 +177,16 @@ class HistoryService {
         totalScore: 0,
         messagesGenerated: 0
       };
-      
+
       stats.totalScored++;
       stats.totalScore += scoreData.score;
-      
-      if (scoreData.tier === 'high') stats.highTier++;
-      else if (scoreData.tier === 'medium') stats.mediumTier++;
-      else stats.lowTier++;
-      
-      if (scoreData.hasMessage) stats.messagesGenerated++;
-      
+
+      if (scoreData.tier === 'high') {stats.highTier++;} else if (scoreData.tier === 'medium') {stats.mediumTier++;} else {stats.lowTier++;}
+
+      if (scoreData.hasMessage) {stats.messagesGenerated++;}
+
       stats.averageScore = Math.round(stats.totalScore / stats.totalScored);
-      
+
       store.put(stats);
     };
   }
@@ -198,10 +196,10 @@ class HistoryService {
       const transaction = this.db.transaction(['scores'], 'readonly');
       const store = transaction.objectStore('scores');
       const index = store.index('timestamp');
-      
+
       const scores = [];
       const request = index.openCursor(null, 'prev');
-      
+
       request.onsuccess = (event) => {
         const cursor = event.target.result;
         if (cursor && scores.length < limit) {
@@ -211,7 +209,7 @@ class HistoryService {
           resolve(scores);
         }
       };
-      
+
       request.onerror = () => reject(request.error);
     });
   }
@@ -220,10 +218,10 @@ class HistoryService {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['dailyStats'], 'readonly');
       const store = transaction.objectStore('dailyStats');
-      
+
       const stats = [];
       const request = store.openCursor();
-      
+
       request.onsuccess = (event) => {
         const cursor = event.target.result;
         if (cursor) {
@@ -235,7 +233,7 @@ class HistoryService {
           resolve(stats.slice(0, daysBack));
         }
       };
-      
+
       request.onerror = () => reject(request.error);
     });
   }
@@ -244,12 +242,12 @@ class HistoryService {
     if (this.useLocalStorage) {
       return this.getStatsFromLocalStorage(7);
     }
-    
+
     const [recentScores, dailyStats] = await Promise.all([
       this.getRecentScores(100),
       this.getDailyStats(30)
     ]);
-    
+
     const today = new Date().toLocaleDateString();
     const todayStats = dailyStats.find(s => s.date === today) || {
       totalScored: 0,
@@ -258,13 +256,13 @@ class HistoryService {
       mediumTier: 0,
       lowTier: 0
     };
-    
+
     const last7Days = dailyStats.slice(0, 7);
     const weekTotal = last7Days.reduce((sum, day) => sum + day.totalScored, 0);
-    const weekAverage = last7Days.length > 0 
+    const weekAverage = last7Days.length > 0
       ? Math.round(last7Days.reduce((sum, day) => sum + day.averageScore, 0) / last7Days.length)
       : 0;
-    
+
     return {
       today: todayStats,
       week: {
@@ -280,15 +278,15 @@ class HistoryService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
     const cutoffString = cutoffDate.toISOString();
-    
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['scores'], 'readwrite');
       const store = transaction.objectStore('scores');
       const index = store.index('timestamp');
-      
+
       const request = index.openCursor();
       let deleted = 0;
-      
+
       request.onsuccess = (event) => {
         const cursor = event.target.result;
         if (cursor) {
@@ -301,11 +299,11 @@ class HistoryService {
           resolve(deleted);
         }
       };
-      
+
       request.onerror = () => reject(request.error);
     });
   }
-  
+
   // LocalStorage fallback methods
   async addScoreToLocalStorage(scoreData) {
     try {
@@ -320,33 +318,33 @@ class HistoryService {
         hasMessage: !!scoreData.message,
         source: scoreData.source || 'individual'
       };
-      
+
       // Get existing scores
       const scores = JSON.parse(localStorage.getItem('networkiq_scores') || '[]');
       scores.push(privacyData);
-      
+
       // Keep only last 100 scores to avoid storage issues
       const recentScores = scores.slice(-100);
       localStorage.setItem('networkiq_scores', JSON.stringify(recentScores));
-      
+
       // Update daily stats
       this.updateDailyStatsInLocalStorage(privacyData);
-      
+
       return Promise.resolve(privacyData.id);
     } catch (error) {
       console.warn('NetworkIQ: Failed to save to localStorage:', error);
       return Promise.resolve(null);
     }
   }
-  
+
   async getStatsFromLocalStorage(days = 7) {
     try {
       const scores = JSON.parse(localStorage.getItem('networkiq_scores') || '[]');
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - days);
-      
+
       const recentScores = scores.filter(s => new Date(s.timestamp) > cutoffDate);
-      
+
       return {
         totalScored: recentScores.length,
         averageScore: recentScores.reduce((acc, s) => acc + s.score, 0) / (recentScores.length || 1),
@@ -363,12 +361,12 @@ class HistoryService {
       };
     }
   }
-  
+
   updateDailyStatsInLocalStorage(privacyData) {
     try {
       const stats = JSON.parse(localStorage.getItem('networkiq_daily_stats') || '{}');
       const today = privacyData.date;
-      
+
       if (!stats[today]) {
         stats[today] = {
           count: 0,
@@ -376,17 +374,17 @@ class HistoryService {
           tiers: {}
         };
       }
-      
+
       stats[today].count++;
       stats[today].totalScore += privacyData.score;
       stats[today].tiers[privacyData.tier] = (stats[today].tiers[privacyData.tier] || 0) + 1;
-      
+
       localStorage.setItem('networkiq_daily_stats', JSON.stringify(stats));
     } catch (error) {
       console.warn('NetworkIQ: Failed to update daily stats:', error);
     }
   }
-  
+
   getTierBreakdown(scores) {
     const breakdown = {};
     scores.forEach(s => {
@@ -394,7 +392,7 @@ class HistoryService {
     });
     return breakdown;
   }
-  
+
   getDailyActivity(scores) {
     const activity = {};
     scores.forEach(s => {
@@ -409,14 +407,14 @@ class HistoryService {
       activity[date].count++;
       activity[date].scores.push(s.score);
     });
-    
+
     // Calculate averages
     Object.keys(activity).forEach(date => {
       const scores = activity[date].scores;
       activity[date].avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
       delete activity[date].scores; // Remove raw scores for privacy
     });
-    
+
     return activity;
   }
 }

@@ -6,7 +6,7 @@
 // Mock scorer test
 function testScorerFiltersUndefinedMatches() {
   console.log('Testing: Scorer should filter undefined matches');
-  
+
   // Mock profile with potentially undefined values
   const mockProfile = {
     name: 'Test User',
@@ -16,7 +16,7 @@ function testScorerFiltersUndefinedMatches() {
     skills: ['Python', undefined, '', null, 'JavaScript'],
     summary: 'Test summary'
   };
-  
+
   // Mock search elements with some undefined values
   const mockSearchElements = [
     { text: 'Python', weight: 10, category: 'skills', display: 'Python' },
@@ -25,7 +25,7 @@ function testScorerFiltersUndefinedMatches() {
     { text: 'MIT', weight: 30, category: 'education', display: 'MIT' },
     { text: 'JavaScript', weight: 10, category: 'skills', display: 'JavaScript' }
   ];
-  
+
   // Simulate the scorer's match filtering logic
   const matches = [];
   for (const element of mockSearchElements) {
@@ -38,14 +38,14 @@ function testScorerFiltersUndefinedMatches() {
       });
     }
   }
-  
+
   // Verify no undefined matches
   console.assert(matches.length === 3, 'Should have 3 valid matches');
   console.assert(!matches.some(m => m.text === undefined), 'No undefined text');
   console.assert(!matches.some(m => m.text === 'undefined'), 'No "undefined" string');
   console.assert(!matches.some(m => m.text === ''), 'No empty strings');
   console.assert(!matches.some(m => m.text === null), 'No null values');
-  
+
   console.log('✅ Scorer correctly filters undefined matches');
   return true;
 }
@@ -53,7 +53,7 @@ function testScorerFiltersUndefinedMatches() {
 // Test UI filtering of undefined matches
 function testUIFiltersUndefinedMatches() {
   console.log('Testing: UI should filter undefined matches in display');
-  
+
   // Mock scoreData with some invalid matches
   const mockScoreData = {
     score: 75,
@@ -66,7 +66,7 @@ function testUIFiltersUndefinedMatches() {
       { text: 'MIT', weight: 30 }
     ]
   };
-  
+
   // Simulate the UI's match filtering logic
   const displayedMatches = mockScoreData.matches
     .filter(m => {
@@ -83,14 +83,14 @@ function testUIFiltersUndefinedMatches() {
       return '';
     })
     .filter(html => html !== '');
-  
+
   // Verify only valid matches are displayed
   console.assert(displayedMatches.length === 2, 'Should display 2 valid matches');
   console.assert(displayedMatches[0] === 'Python (+10)', 'First match should be Python');
   console.assert(displayedMatches[1] === 'MIT (+30)', 'Second match should be MIT');
   console.assert(!displayedMatches.includes('undefined (+5)'), 'No undefined in display');
   console.assert(!displayedMatches.includes(' (+5)'), 'No empty text in display');
-  
+
   console.log('✅ UI correctly filters undefined matches in display');
   return true;
 }
@@ -98,15 +98,15 @@ function testUIFiltersUndefinedMatches() {
 // Run all tests
 function runTests() {
   console.log('🧪 Running NetworkIQ Scorer Tests...\n');
-  
+
   const tests = [
     testScorerFiltersUndefinedMatches,
     testUIFiltersUndefinedMatches
   ];
-  
+
   let passed = 0;
   let failed = 0;
-  
+
   for (const test of tests) {
     try {
       if (test()) {
@@ -119,7 +119,7 @@ function runTests() {
       failed++;
     }
   }
-  
+
   console.log(`\n📊 Test Results: ${passed} passed, ${failed} failed`);
   return failed === 0;
 }

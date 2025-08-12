@@ -17,7 +17,7 @@ class LinkedInParser {
    */
   parse() {
     const url = window.location.href;
-    
+
     // Check if we're on a profile page
     if (!url.includes('/in/')) {
       return null;
@@ -52,14 +52,14 @@ class LinkedInParser {
       '.pv-top-card--list h1',
       'h1[class*="inline"]'
     ];
-    
+
     for (const selector of selectors) {
       const element = document.querySelector(selector);
       if (element?.textContent) {
         return element.textContent.trim();
       }
     }
-    
+
     return 'Unknown';
   }
 
@@ -74,14 +74,14 @@ class LinkedInParser {
       '.pv-top-card--list [data-field="headline"]',
       'div[class*="pv-text-details__left-panel"] > div:nth-child(2)'
     ];
-    
+
     for (const selector of selectors) {
       const element = document.querySelector(selector);
       if (element?.textContent) {
         return element.textContent.trim();
       }
     }
-    
+
     return '';
   }
 
@@ -120,14 +120,14 @@ class LinkedInParser {
       '.pv-top-card--list-bullet > li:first-child',
       'span[class*="text-body-small"][class*="t-black--light"]'
     ];
-    
+
     for (const selector of selectors) {
       const element = document.querySelector(selector);
       if (element?.textContent && !element.textContent.includes('connection')) {
         return element.textContent.trim();
       }
     }
-    
+
     return '';
   }
 
@@ -139,24 +139,24 @@ class LinkedInParser {
         return text.textContent.trim();
       }
     }
-    
+
     // Try alternative selector
     const aboutAlt = document.querySelector('[data-field="about"] span[aria-hidden="true"]');
     if (aboutAlt) {
       return aboutAlt.textContent.trim();
     }
-    
+
     return '';
   }
 
   getExperience() {
     const experiences = [];
-    
+
     // Try modern LinkedIn structure first
     const experienceSection = Array.from(document.querySelectorAll('section')).find(
       section => section.querySelector('div[id="experience"]')
     );
-    
+
     if (experienceSection) {
       // Look for experience items
       const expItems = experienceSection.querySelectorAll('li[class*="artdeco-list__item"]');
@@ -164,7 +164,7 @@ class LinkedInParser {
         // Get role title (usually in a strong or span element)
         const titleElement = item.querySelector('div[data-field="title"] span[aria-hidden="true"], div span[dir="ltr"]');
         const title = titleElement?.textContent?.trim();
-        
+
         // Get company name
         const companyElement = item.querySelector('span[aria-hidden="true"]');
         let company = '';
@@ -176,33 +176,33 @@ class LinkedInParser {
             company = parts[0].trim();
           }
         }
-        
+
         if (title || company) {
           experiences.push(`${title || 'Role'} at ${company || 'Company'}`);
         }
       });
     }
-    
+
     // Fallback: extract from text
     if (experiences.length === 0) {
       const allText = this.getAllText().toLowerCase();
-      if (allText.includes('scale ai')) experiences.push('Scale AI');
-      if (allText.includes('c3 ai')) experiences.push('C3 AI');
-      if (allText.includes('sabel systems')) experiences.push('Sabel Systems');
-      if (allText.includes('air force')) experiences.push('US Air Force');
+      if (allText.includes('scale ai')) {experiences.push('Scale AI');}
+      if (allText.includes('c3 ai')) {experiences.push('C3 AI');}
+      if (allText.includes('sabel systems')) {experiences.push('Sabel Systems');}
+      if (allText.includes('air force')) {experiences.push('US Air Force');}
     }
-    
+
     return experiences.join('; ');
   }
 
   getEducation() {
     const education = [];
-    
+
     // Try modern LinkedIn structure
     const educationSection = Array.from(document.querySelectorAll('section')).find(
       section => section.querySelector('div[id="education"]')
     );
-    
+
     if (educationSection) {
       const eduItems = educationSection.querySelectorAll('li[class*="artdeco-list__item"]');
       eduItems.forEach(item => {
@@ -215,7 +215,7 @@ class LinkedInParser {
         }
       });
     }
-    
+
     // Fallback: extract known schools from text
     if (education.length === 0) {
       const allText = this.getAllText().toLowerCase();
@@ -227,14 +227,14 @@ class LinkedInParser {
       }
       // Add other common universities as needed
     }
-    
+
     return education.join('; ');
   }
 
   getSkills() {
     const skills = [];
     const skillSection = document.querySelector('[id="skills"]')?.parentElement;
-    
+
     if (skillSection) {
       const skillElements = skillSection.querySelectorAll('[class*="pv-skill-category-entity__name"]');
       skillElements.forEach(skill => {
@@ -244,7 +244,7 @@ class LinkedInParser {
         }
       });
     }
-    
+
     return skills.slice(0, 10); // Top 10 skills
   }
 
@@ -264,9 +264,9 @@ class LinkedInParser {
     const connectionElements = document.querySelectorAll('[class*="distance-badge"] span');
     for (const element of connectionElements) {
       const text = element.textContent;
-      if (text?.includes('1st')) return '1st';
-      if (text?.includes('2nd')) return '2nd';
-      if (text?.includes('3rd')) return '3rd';
+      if (text?.includes('1st')) {return '1st';}
+      if (text?.includes('2nd')) {return '2nd';}
+      if (text?.includes('3rd')) {return '3rd';}
     }
     return '';
   }
@@ -295,24 +295,24 @@ class LinkedInParser {
    */
   static getSearchResultProfiles() {
     const profiles = [];
-    
+
     // First try standard selectors
     let resultCards = document.querySelectorAll(
       '.entity-result__item, ' +
-      '.reusable-search__result-container, ' + 
+      '.reusable-search__result-container, ' +
       'li[class*="reusable-search__result-container"], ' +
       'div[data-chameleon-result-urn], ' +
       '[data-view-name="search-entity-result-universal-template"], ' +
       '.search-results__list > li, ' +
       '.pv-search-results-list > li'
     );
-    
+
     // If no results found, try finding cards by working up from profile links
     if (resultCards.length === 0) {
       console.log('NetworkIQ: Standard selectors failed, trying profile link approach...');
       const profileLinks = document.querySelectorAll('a[href*="/in/"]');
       const uniqueCards = new Set();
-      
+
       profileLinks.forEach(link => {
         // Walk up to find the container card (usually 3-5 levels up)
         let card = link;
@@ -323,8 +323,8 @@ class LinkedInParser {
             break;
           }
           // Also check for DIV containers with result-like classes
-          if (card && card.className && 
-              (card.className.includes('result') || 
+          if (card && card.className &&
+              (card.className.includes('result') ||
                card.className.includes('search') ||
                card.className.includes('entity'))) {
             uniqueCards.add(card);
@@ -332,11 +332,11 @@ class LinkedInParser {
           }
         }
       });
-      
+
       resultCards = Array.from(uniqueCards);
       console.log(`NetworkIQ: Found ${resultCards.length} cards via profile link approach`);
     }
-    
+
     resultCards.forEach((card, index) => {
       // Find the main profile link
       const link = card.querySelector('a[href*="/in/"]');
@@ -344,12 +344,12 @@ class LinkedInParser {
         console.log(`NetworkIQ: Card ${index} has no profile link`);
         return;
       }
-      
+
       const url = link.href.split('?')[0]; // Clean URL
-      
+
       // Extract name - try multiple approaches
       let name = '';
-      
+
       // First try: specific selectors for name only (avoid getting title/location)
       const nameSelectors = [
         '.entity-result__title-text span[aria-hidden="true"]',
@@ -359,12 +359,12 @@ class LinkedInParser {
         'span[aria-hidden="true"]',
         '.ember-view span[aria-hidden="true"]'
       ];
-      
+
       for (const selector of nameSelectors) {
         const nameElement = card.querySelector(selector);
         if (nameElement?.textContent?.trim()) {
           let potentialName = nameElement.textContent.trim();
-          
+
           // Clean up the name - remove common LinkedIn artifacts
           potentialName = potentialName
             .replace(/\n/g, ' ')
@@ -372,9 +372,9 @@ class LinkedInParser {
             .replace(/^\d+\w*\s*/, '') // Remove "1st", "2nd", "3rd" prefixes
             .replace(/\s*(San Francisco Bay Area|Greater Chicago Area|United States|CA|NY).*$/i, '') // Remove location suffixes
             .trim();
-          
+
           // Only use if it looks like a name (not a title or location)
-          if (potentialName && 
+          if (potentialName &&
               !potentialName.toLowerCase().includes('degree connection') &&
               !potentialName.toLowerCase().includes('google') &&
               !potentialName.toLowerCase().includes('san francisco') &&
@@ -384,19 +384,19 @@ class LinkedInParser {
           }
         }
       }
-      
+
       // Fallback: try to extract from the profile link URL
       if (!name) {
         const urlParts = url.split('/in/')[1]?.split('-');
         if (urlParts && urlParts.length >= 2) {
-          name = urlParts.slice(0, 2).map(part => 
+          name = urlParts.slice(0, 2).map(part =>
             part.charAt(0).toUpperCase() + part.slice(1)
           ).join(' ');
         }
       }
-      
+
       console.log(`NetworkIQ: Card ${index} - Name: "${name}", URL: ${url}`);
-      
+
       // Get title/headline - this often contains important info like "Air Force Academy"
       const titleSelectors = [
         '.entity-result__primary-subtitle',
@@ -405,7 +405,7 @@ class LinkedInParser {
         '.entity-result__title-line + div',  // The div after the name often has the title
         'div[class*="subtitle"]'
       ];
-      
+
       let title = '';
       for (const selector of titleSelectors) {
         const titleElement = card.querySelector(selector);
@@ -414,7 +414,7 @@ class LinkedInParser {
           break;
         }
       }
-      
+
       // Get location
       const locationElement = card.querySelector(
         '.entity-result__secondary-subtitle, ' +
@@ -422,7 +422,7 @@ class LinkedInParser {
         '.t-12.t-black--light.t-normal'
       );
       const location = locationElement?.textContent?.trim();
-      
+
       // Get summary/snippet text if available - look for more elements
       const summarySelectors = [
         '.entity-result__summary',
@@ -433,7 +433,7 @@ class LinkedInParser {
         '.search-result__info', // Additional info sections
         '[data-test-id*="snippet"]' // Text snippets
       ];
-      
+
       let summary = '';
       for (const selector of summarySelectors) {
         const summaryElement = card.querySelector(selector);
@@ -444,7 +444,7 @@ class LinkedInParser {
           }
         }
       }
-      
+
       // Get mutual connections if shown - expanded selectors
       const mutualSelectors = [
         '[class*="shared-connections"]',
@@ -454,12 +454,12 @@ class LinkedInParser {
         'span:contains("mutual connection")', // Not valid CSS but conceptual
         '[class*="highlight"]' // Sometimes mutual connections are in highlights
       ];
-      
+
       let mutualConnections = '';
       for (const selector of mutualSelectors) {
         // Skip invalid selectors
-        if (selector.includes(':contains')) continue;
-        
+        if (selector.includes(':contains')) {continue;}
+
         try {
           const mutualElement = card.querySelector(selector);
           if (mutualElement?.textContent?.trim()) {
@@ -474,7 +474,7 @@ class LinkedInParser {
           console.log('NetworkIQ: Skipping invalid selector:', selector);
         }
       }
-      
+
       // Also search for "mutual connection" text in all spans if not found
       if (!mutualConnections) {
         const allSpans = card.querySelectorAll('span');
@@ -486,7 +486,7 @@ class LinkedInParser {
           }
         }
       }
-      
+
       // Extract company from title
       let company = '';
       if (title) {
@@ -502,7 +502,7 @@ class LinkedInParser {
           }
         }
       }
-      
+
       // Get profile image for visual appeal
       const imageElement = card.querySelector(
         'img[class*="presence-entity__image"], ' +
@@ -510,24 +510,24 @@ class LinkedInParser {
         'img[class*="EntityPhoto"]'
       );
       const imageUrl = imageElement?.src;
-      
+
       // Get ALL text from the card for comprehensive matching
       // This ensures we catch things like "Air Force Academy" that might be anywhere
       let cardFullText = '';
-      
+
       // Try to get text more precisely to avoid cross-contamination between cards
       try {
         // Clone the card to avoid modifying the original
         const cardClone = card.cloneNode(true);
-        
+
         // Remove any nested search result cards that might contaminate the text
         const nestedCards = cardClone.querySelectorAll('.entity-result__item, [data-chameleon-result-urn]');
         nestedCards.forEach(nested => {
-          if (nested !== cardClone) nested.remove();
+          if (nested !== cardClone) {nested.remove();}
         });
-        
+
         cardFullText = cardClone.textContent?.replace(/\s+/g, ' ').trim() || '';
-        
+
         // Fallback: if clone fails, use original but limit length
         if (!cardFullText) {
           cardFullText = card.textContent?.replace(/\s+/g, ' ').trim().substring(0, 1000) || '';
@@ -536,9 +536,9 @@ class LinkedInParser {
         // Fallback to basic extraction
         cardFullText = card.textContent?.replace(/\s+/g, ' ').trim().substring(0, 1000) || '';
       }
-      
+
       const structuredText = `${name} ${title} ${company} ${location} ${summary}`.toLowerCase();
-      
+
       // Also look for any additional text elements that might contain keywords
       const additionalTextElements = card.querySelectorAll('span[aria-hidden="true"]:not(.entity-result__item span), div[class*="subline"]:not(.entity-result__item div)');
       const additionalTexts = Array.from(additionalTextElements)
@@ -546,24 +546,24 @@ class LinkedInParser {
         .filter(text => text && text.length > 0 && text.length < 200) // Avoid very long text that might be contamination
         .join(' ')
         .toLowerCase();
-      
+
       // Combine all text sources for maximum coverage but with reasonable limits
       const fullText = (cardFullText + ' ' + structuredText + ' ' + additionalTexts)
         .replace(/\s+/g, ' ')
         .toLowerCase()
         .substring(0, 2000); // Limit total text length to avoid huge strings
-      
+
       console.log(`NetworkIQ: Card ${index} (${name}):`);
       console.log(`  - Title: "${title}"`);
       console.log(`  - Summary: "${summary}"`);
       console.log(`  - Mutual: "${mutualConnections}"`);
       console.log(`  - Full text sample: "${fullText.substring(0, 200)}"`);
-      
+
       // Debug: Check if this specific profile contains key terms
       if (fullText.includes('air force academy') || fullText.includes('usafa') || fullText.includes('veteran')) {
         console.log(`NetworkIQ: ⭐ MILITARY/ACADEMY found in card ${index} (${name}):`, fullText.substring(0, 500));
       }
-      
+
       // Add profile if we have at least a URL (name might be empty on some cards)
       if (url && !profiles.find(p => p.url === url)) {
         const profile = {
@@ -582,7 +582,7 @@ class LinkedInParser {
         console.log(`NetworkIQ: Added profile ${profiles.length}:`, profile.name);
       }
     });
-    
+
     return profiles;
   }
 }

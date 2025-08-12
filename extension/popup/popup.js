@@ -6,15 +6,15 @@ const API_BASE_URL = 'http://localhost:8000/api';
 document.addEventListener('DOMContentLoaded', async () => {
   // Check auth and show dev button if needed
   await setupDevAuth();
-  
+
   // Load and display user data
   await loadUserData();
-  
+
   // History stats removed - unrestricted version
-  
+
   // Set up event listeners
   setupEventListeners();
-  
+
   // Load and setup toggle switches
   await setupToggleSwitches();
 });
@@ -22,40 +22,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function setupDevAuth() {
   const authCheck = await chrome.storage.sync.get(['authToken']);
   const devBtn = document.getElementById('devAuthBtn');
-  
+
   if (!authCheck.authToken && devBtn) {
     devBtn.style.display = 'block';
     devBtn.addEventListener('click', async () => {
       devBtn.disabled = true;
       devBtn.textContent = '⏳ Authenticating...';
-      
+
       try {
         const response = await fetch('http://localhost:8000/api/auth/test-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
         const data = await response.json();
-        
+
         if (data.access_token) {
           // Store the token
           await chrome.storage.sync.set({
             authToken: data.access_token,
             user: data.user
           });
-          
+
           await chrome.storage.local.set({
             isAuthenticated: true,
             authToken: data.access_token,
             user: data.user
           });
-          
+
           // Update service worker
           chrome.runtime.sendMessage({
             action: 'updateAuth',
             token: data.access_token,
             user: data.user
           });
-          
+
           devBtn.textContent = '✅ Authenticated!';
           setTimeout(() => window.location.reload(), 1000);
         }
@@ -71,13 +71,13 @@ async function setupDevAuth() {
 async function loadUserData() {
   try {
     const result = await chrome.storage.local.get(['user', 'stats', 'isAuthenticated', 'authToken', 'resumeData']);
-    
+
     if (!result.isAuthenticated) {
       // Redirect to login/signup flow
       showLoginUI();
       return;
     }
-    
+
     // Update user tier
     const userTier = document.getElementById('userTier');
     if (result.user?.subscriptionTier === 'pro') {
@@ -91,14 +91,14 @@ async function loadUserData() {
       // Show usage limits for free users
       updateUsageDisplay(result.stats);
     }
-    
+
     // Stats section removed - skip updating stats elements
-    
+
     // Show resume status if uploaded
     if (result.resumeData) {
       showResumeStatus(result.resumeData);
     }
-    
+
   } catch (error) {
     console.error('Error loading user data:', error);
   }
@@ -110,18 +110,18 @@ function updateUsageDisplay(stats) {
   const usageSection = document.getElementById('usageSection');
   const usageFill = document.getElementById('usageFill');
   const usageCount = document.getElementById('usageCount');
-  
+
   if (!usageFill || !usageCount) {
     return; // Elements don't exist, skip
   }
-  
+
   const used = stats?.todayScores || 0;
   const limit = 10;
   const percentage = (used / limit) * 100;
-  
+
   usageFill.style.width = `${percentage}%`;
   usageCount.textContent = `${used}/${limit}`;
-  
+
   if (percentage >= 80) {
     usageFill.style.background = '#FFA500';
   } else if (percentage >= 100) {
@@ -133,26 +133,26 @@ function setupEventListeners() {
   // Score current profile button
   document.getElementById('scoreCurrentBtn')?.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     if (!tab.url?.includes('linkedin.com/in/')) {
       showStatus('Please navigate to a LinkedIn profile', 'error');
       return;
     }
-    
+
     // Send message to content script to score the profile
     chrome.tabs.sendMessage(tab.id, { action: 'scoreProfile' });
     window.close();
   });
-  
-  
+
+
   // Resume upload button
   document.getElementById('uploadResumeBtn')?.addEventListener('click', () => {
     document.getElementById('resumeUpload').click();
   });
-  
+
   // Resume file selection
   document.getElementById('resumeUpload')?.addEventListener('change', handleResumeUpload);
-  
+
   // Basic tier upgrade button
   document.getElementById('upgradeBasicBtn')?.addEventListener('click', async () => {
     const result = await chrome.storage.local.get(['authToken']);
@@ -171,7 +171,7 @@ function setupEventListeners() {
       showLoginUI();
     }
   });
-  
+
   // Advanced tier upgrade button
   document.getElementById('upgradeAdvancedBtn')?.addEventListener('click', async () => {
     const result = await chrome.storage.local.get(['authToken']);
@@ -190,20 +190,20 @@ function setupEventListeners() {
       showLoginUI();
     }
   });
-  
+
   // Footer links - commented out until deployed
   document.getElementById('dashboardLink')?.addEventListener('click', (e) => {
     e.preventDefault();
     // chrome.tabs.create({ url: 'https://networkiq.ai/dashboard' });
     alert('Dashboard coming soon!');
   });
-  
+
   document.getElementById('supportLink')?.addEventListener('click', (e) => {
     e.preventDefault();
     // chrome.tabs.create({ url: 'https://networkiq.ai/support' });
     alert('Support: Please email support@networkiq.ai');
   });
-  
+
   document.getElementById('logoutLink')?.addEventListener('click', async (e) => {
     e.preventDefault();
     if (confirm('Are you sure you want to logout?')) {
@@ -215,34 +215,34 @@ function setupEventListeners() {
 
 async function handleResumeUpload(event) {
   const file = event.target.files[0];
-  if (!file) return;
-  
+  if (!file) {return;}
+
   // Validate file type
   const validTypes = ['.pdf', '.docx', '.doc', '.txt'];
   const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-  
+
   if (!validTypes.includes(fileExt)) {
     showStatus('Please upload a PDF, DOCX, or TXT file', 'error');
     return;
   }
-  
+
   // Validate file size (10MB max)
   if (file.size > 10 * 1024 * 1024) {
     showStatus('File size must be less than 10MB', 'error');
     return;
   }
-  
+
   // Get auth token
   const result = await chrome.storage.local.get(['authToken']);
-  
+
   // Show loading status
   showStatus('Analyzing resume locally...', 'loading');
   document.getElementById('uploadBtnText').textContent = 'Processing...';
-  
+
   try {
     let extractedElements = null;
     let needsBackendProcessing = false;
-    
+
     // Try to extract text locally first
     if (fileExt === '.txt') {
       // Text files can be processed locally
@@ -253,11 +253,11 @@ async function handleResumeUpload(event) {
       // PDF, DOCX, and DOC files need backend processing for proper parsing
       needsBackendProcessing = true;
     }
-    
+
     // If we extracted locally, just save the search elements
     if (extractedElements && !needsBackendProcessing) {
       const searchElements = ResumeExtractor.createSearchElements(extractedElements);
-      
+
       // Store in chrome storage
       await chrome.storage.local.set({
         searchElements: searchElements,
@@ -267,11 +267,11 @@ async function handleResumeUpload(event) {
         },
         resumeUploadedAt: new Date().toISOString()
       });
-      
+
       // Clear profile analysis cache since resume changed
       try {
         // Notify content scripts to clear cache
-        chrome.tabs.query({url: "*://*.linkedin.com/*"}, (tabs) => {
+        chrome.tabs.query({ url: '*://*.linkedin.com/*' }, (tabs) => {
           tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               action: 'clearProfileCache',
@@ -283,28 +283,28 @@ async function handleResumeUpload(event) {
       } catch (error) {
         console.warn('NetworkIQ Popup: Failed to clear cache:', error);
       }
-      
+
       // Show success
       showStatus('Resume analyzed successfully!', 'success');
       document.getElementById('uploadBtnText').textContent = 'Update Resume';
-      
+
       // Display summary
       showResumeStatus({
         ...extractedElements,
         search_elements: searchElements.length
       });
-      
+
       // Notify content scripts
       notifyContentScripts(searchElements);
-      
+
     } else if (result.authToken) {
       // Need backend processing for PDF (OCR) or DOCX parsing
       showStatus('Processing resume with advanced extraction...', 'loading');
-      
+
       // Create form data
       const formData = new FormData();
       formData.append('file', file);
-      
+
       // Upload to backend
       const response = await fetch(`${API_BASE_URL}/resume/upload`, {
         method: 'POST',
@@ -313,38 +313,38 @@ async function handleResumeUpload(event) {
         },
         body: formData
       });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Upload failed');
-    }
-    
-    const data = await response.json();
-    
-    // Store resume data in chrome storage
-    await chrome.storage.local.set({
-      resumeData: data.data,
-      resumeUploadedAt: new Date().toISOString()
-    });
-    
-    // Show success
-    showStatus('Resume uploaded successfully!', 'success');
-    document.getElementById('uploadBtnText').textContent = 'Update Resume';
-    
-    // Display resume summary
-    showResumeStatus(data.data);
-    
-    // Notify content scripts
-    notifyContentScripts(data.data.search_elements);
-    
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Upload failed');
+      }
+
+      const data = await response.json();
+
+      // Store resume data in chrome storage
+      await chrome.storage.local.set({
+        resumeData: data.data,
+        resumeUploadedAt: new Date().toISOString()
+      });
+
+      // Show success
+      showStatus('Resume uploaded successfully!', 'success');
+      document.getElementById('uploadBtnText').textContent = 'Update Resume';
+
+      // Display resume summary
+      showResumeStatus(data.data);
+
+      // Notify content scripts
+      notifyContentScripts(data.data.search_elements);
+
     } else {
       // No backend - process locally only
       showStatus('Processing resume locally...', 'loading');
-      
+
       // Try to extract text based on file type
       let text = '';
       let extractedElements = null;
-      
+
       if (fileExt === '.txt') {
         text = await file.text();
         extractedElements = ResumeExtractor.extractKeyElements(text);
@@ -364,10 +364,10 @@ async function handleResumeUpload(event) {
         document.getElementById('uploadBtnText').textContent = 'Choose Resume File';
         return;
       }
-      
+
       // Create search elements
       const searchElements = ResumeExtractor.createSearchElements(extractedElements);
-      
+
       // Store in chrome storage
       await chrome.storage.local.set({
         searchElements: searchElements,
@@ -377,11 +377,11 @@ async function handleResumeUpload(event) {
         },
         resumeUploadedAt: new Date().toISOString()
       });
-      
+
       // Clear profile analysis cache since resume changed
       try {
         // Notify content scripts to clear cache
-        chrome.tabs.query({url: "*://*.linkedin.com/*"}, (tabs) => {
+        chrome.tabs.query({ url: '*://*.linkedin.com/*' }, (tabs) => {
           tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               action: 'clearProfileCache',
@@ -393,21 +393,21 @@ async function handleResumeUpload(event) {
       } catch (error) {
         console.warn('NetworkIQ Popup: Failed to clear cache:', error);
       }
-      
+
       // Show success
       showStatus('Resume analyzed successfully!', 'success');
       document.getElementById('uploadBtnText').textContent = 'Update Resume';
-      
+
       // Display summary
       showResumeStatus({
         ...extractedElements,
         search_elements: searchElements.length
       });
-      
+
       // Notify content scripts
       notifyContentScripts(searchElements);
     }
-    
+
   } catch (error) {
     console.error('Upload error:', error);
     showStatus(error.message || 'Failed to process resume', 'error');
@@ -422,13 +422,13 @@ async function extractDocxText(file) {
     // Try to get the plain text by looking for readable content
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
-    
+
     let text = '';
     const decoder = new TextDecoder('utf-8', { fatal: false });
-    
+
     // Convert to string - this will have XML and binary mixed
     const fullContent = decoder.decode(uint8Array);
-    
+
     // First try: Look for text between <w:t> tags (Word text elements)
     const textMatches = fullContent.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
     if (textMatches && textMatches.length > 10) {
@@ -436,16 +436,16 @@ async function extractDocxText(file) {
         .map(match => match.replace(/<[^>]+>/g, ''))
         .filter(t => t.trim().length > 0)
         .join(' ');
-      
+
       console.log(`Extracted ${text.length} chars from XML tags`);
     }
-    
+
     // If that didn't work, try a simpler approach
     // Extract any readable ASCII/UTF-8 text
     if (!text || text.length < 100) {
       const chunks = [];
       let currentChunk = '';
-      
+
       for (let i = 0; i < uint8Array.length; i++) {
         const byte = uint8Array[i];
         // Readable ASCII and extended characters
@@ -459,11 +459,11 @@ async function extractDocxText(file) {
           currentChunk = '';
         }
       }
-      
+
       if (currentChunk.length > 3) {
         chunks.push(currentChunk);
       }
-      
+
       // Filter and join chunks that look like actual text
       text = chunks
         .filter(chunk => {
@@ -472,7 +472,7 @@ async function extractDocxText(file) {
         })
         .join(' ');
     }
-    
+
     // Look for resume-like content patterns in the full text
     // Resume text often appears after the XML/binary content
     // Look for common resume keywords or email patterns
@@ -487,24 +487,24 @@ async function extractDocxText(file) {
         .replace(/\s+/g, ' ') // Normalize whitespace
         .substring(0, 50000) // Limit to 50k chars
         .trim();
-      
+
       console.log('Found resume content starting at position', resumeStart);
     }
-    
+
     // Final cleanup
     text = text
       .replace(/\s+/g, ' ') // Normalize whitespace
       .replace(/([A-Z]{2,})\s+([A-Z]{2,})/g, '$1 $2') // Fix spacing between acronyms
       .trim();
-    
+
     console.log(`Extracted ${text.length} characters from DOCX`);
-    
+
     // Make sure we got enough text
     if (text.length < 100) {
       console.log('Not enough text extracted from DOCX, will try backend');
       return null;
     }
-    
+
     return text;
   } catch (error) {
     console.error('Error extracting DOCX text:', error);
@@ -517,7 +517,7 @@ function notifyContentScripts(searchElements) {
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => {
       if (tab.url?.includes('linkedin.com')) {
-        chrome.tabs.sendMessage(tab.id, { 
+        chrome.tabs.sendMessage(tab.id, {
           action: 'updateScoringElements',
           data: { search_elements: searchElements }
         }).catch(() => {}); // Ignore errors for tabs without content script
@@ -530,12 +530,12 @@ function showResumeStatus(resumeData) {
   const resumeDetails = document.getElementById('resumeDetails');
   const resumeSummary = document.getElementById('resumeSummary');
   const editBtn = document.getElementById('editWeightsBtn');
-  
-  if (!resumeData) return;
-  
+
+  if (!resumeData) {return;}
+
   // Build summary HTML
   let summaryHTML = '';
-  
+
   // Companies
   if (resumeData.companies && resumeData.companies.length > 0) {
     summaryHTML += `
@@ -545,7 +545,7 @@ function showResumeStatus(resumeData) {
       </div>
     `;
   }
-  
+
   // Education
   if (resumeData.education && resumeData.education.length > 0) {
     const schools = resumeData.education
@@ -561,7 +561,7 @@ function showResumeStatus(resumeData) {
       `;
     }
   }
-  
+
   // Military
   if (resumeData.military) {
     summaryHTML += `
@@ -571,7 +571,7 @@ function showResumeStatus(resumeData) {
       </div>
     `;
   }
-  
+
   // Skills count
   if (resumeData.skills && typeof resumeData.skills === 'number') {
     summaryHTML += `
@@ -581,7 +581,7 @@ function showResumeStatus(resumeData) {
       </div>
     `;
   }
-  
+
   // Search elements count
   if (resumeData.search_elements && typeof resumeData.search_elements === 'number') {
     summaryHTML += `
@@ -591,16 +591,16 @@ function showResumeStatus(resumeData) {
       </div>
     `;
   }
-  
+
   resumeSummary.innerHTML = summaryHTML;
   resumeDetails.style.display = 'block';
-  
+
   // Show edit button
   if (editBtn) {
     editBtn.style.display = 'block';
     editBtn.addEventListener('click', () => showWeightsEditor(resumeData));
   }
-  
+
   // Update button text to indicate resume is uploaded
   document.getElementById('uploadBtnText').textContent = 'Update Resume';
 }
@@ -609,32 +609,32 @@ function showResumeStatus(resumeData) {
 async function showWeightsEditor(resumeData) {
   const editor = document.getElementById('weightsEditor');
   const editBtn = document.getElementById('editWeightsBtn');
-  
-  if (!editor) return;
-  
+
+  if (!editor) {return;}
+
   // Toggle visibility
   if (editor.style.display === 'block') {
     editor.style.display = 'none';
     editBtn.textContent = 'Edit Matching Weights';
     return;
   }
-  
+
   editor.style.display = 'block';
   editBtn.textContent = 'Hide Editor';
-  
+
   // Load current search elements and Calendly link
   const result = await chrome.storage.local.get(['searchElements', 'calendlyLink']);
   const searchElements = result.searchElements || [];
-  
+
   // Load saved Calendly link
   const calendlyInput = document.getElementById('calendlyLink');
   if (calendlyInput && result.calendlyLink) {
     calendlyInput.value = result.calendlyLink;
   }
-  
+
   // Display current elements
   displaySearchElements(searchElements);
-  
+
   // Set up event listeners
   setupWeightsEditorListeners(searchElements);
 }
@@ -643,21 +643,21 @@ async function showWeightsEditor(resumeData) {
 function displaySearchElements(searchElements) {
   const container = document.getElementById('searchElementsList');
   const bulkActions = document.getElementById('bulkActions');
-  if (!container) return;
-  
+  if (!container) {return;}
+
   // Show bulk actions if there are elements
   if (bulkActions) {
     bulkActions.style.display = searchElements.length > 0 ? 'flex' : 'none';
   }
-  
+
   // Group by category
   const grouped = {};
   searchElements.forEach(element => {
     const category = element.category || 'keywords';
-    if (!grouped[category]) grouped[category] = [];
+    if (!grouped[category]) {grouped[category] = [];}
     grouped[category].push(element);
   });
-  
+
   // Build HTML
   let html = '';
   Object.entries(grouped).forEach(([category, elements]) => {
@@ -665,7 +665,7 @@ function displaySearchElements(searchElements) {
       <div class="weight-category-group">
         <div class="weight-category-header">${category.toUpperCase()}</div>
     `;
-    
+
     elements.forEach((element, index) => {
       const uniqueId = `${category}-${index}`;
       html += `
@@ -689,31 +689,31 @@ function displaySearchElements(searchElements) {
         </div>
       `;
     });
-    
+
     html += '</div>';
   });
-  
+
   container.innerHTML = html;
-  
+
   // Add change listeners for sliders and inputs
   container.querySelectorAll('.weight-slider').forEach(slider => {
     slider.addEventListener('input', (e) => {
       const id = e.target.dataset.id;
       const value = e.target.value;
       const input = container.querySelector(`.weight-input[data-id="${id}"]`);
-      if (input) input.value = value;
+      if (input) {input.value = value;}
     });
   });
-  
+
   container.querySelectorAll('.weight-input').forEach(input => {
     input.addEventListener('input', (e) => {
       const id = e.target.dataset.id;
       const value = e.target.value;
       const slider = container.querySelector(`.weight-slider[data-id="${id}"]`);
-      if (slider) slider.value = value;
+      if (slider) {slider.value = value;}
     });
   });
-  
+
   // Add delete listeners
   container.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -724,7 +724,7 @@ function displaySearchElements(searchElements) {
       }
     });
   });
-  
+
   // Add checkbox listeners
   container.querySelectorAll('.weight-item-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', (e) => {
@@ -736,7 +736,7 @@ function displaySearchElements(searchElements) {
       updateSelectAllCheckbox();
     });
   });
-  
+
   // Setup bulk operations
   setupBulkOperations();
 }
@@ -747,15 +747,15 @@ function setupWeightsEditorListeners(originalElements) {
   document.getElementById('addCriteriaBtn')?.addEventListener('click', () => {
     const input = document.getElementById('newCriteriaInput');
     const weight = document.getElementById('newCriteriaWeight');
-    
-    if (!input.value.trim()) return;
-    
+
+    if (!input.value.trim()) {return;}
+
     // Always use 'keyword' as the category for user-added items
     const category = 'keyword';
-    
+
     // Add to the list
     const container = document.getElementById('searchElementsList');
-    
+
     const newId = `${category}-${Date.now()}`;
     const newItem = document.createElement('div');
     newItem.className = 'weight-item';
@@ -777,7 +777,7 @@ function setupWeightsEditorListeners(originalElements) {
         <button class="delete-btn" data-id="${newId}">✕</button>
       </div>
     `;
-    
+
     // Find existing category group for keywords
     let categoryGroup = null;
     const groups = container.querySelectorAll('.weight-category-group');
@@ -788,7 +788,7 @@ function setupWeightsEditorListeners(originalElements) {
         break;
       }
     }
-    
+
     // Add to appropriate category or create new one
     if (categoryGroup) {
       categoryGroup.appendChild(newItem);
@@ -799,14 +799,14 @@ function setupWeightsEditorListeners(originalElements) {
       newGroup.appendChild(newItem);
       container.appendChild(newGroup);
     }
-    
+
     // Clear input
     input.value = '';
-    
+
     // Reattach listeners
     attachItemListeners(newItem);
   });
-  
+
   // Save Calendly link
   document.getElementById('saveCalendlyBtn')?.addEventListener('click', async () => {
     const calendlyLink = document.getElementById('calendlyLink').value.trim();
@@ -814,20 +814,20 @@ function setupWeightsEditorListeners(originalElements) {
       alert('Please enter a valid URL starting with http:// or https://');
       return;
     }
-    
+
     await chrome.storage.local.set({ calendlyLink: calendlyLink });
     showStatus(calendlyLink ? 'Meeting link saved!' : 'Meeting link removed', 'success');
   });
-  
+
   // Save changes
   document.getElementById('saveWeightsBtn')?.addEventListener('click', async () => {
     const newElements = [];
-    
+
     document.querySelectorAll('.weight-item').forEach(item => {
       const label = item.querySelector('.editable-label').value;
       const category = item.querySelector('.weight-item-category').textContent;
       const weight = parseInt(item.querySelector('.weight-input').value);
-      
+
       if (label && weight >= 0) {
         newElements.push({
           value: label.toLowerCase(),
@@ -837,33 +837,33 @@ function setupWeightsEditorListeners(originalElements) {
         });
       }
     });
-    
+
     // Also save Calendly link when saving weights
     const calendlyLink = document.getElementById('calendlyLink')?.value.trim();
-    
+
     // Save to storage
-    await chrome.storage.local.set({ 
+    await chrome.storage.local.set({
       searchElements: newElements,
       calendlyLink: calendlyLink || ''
     });
-    
+
     // Notify content scripts
     notifyContentScripts(newElements);
-    
+
     // Show success
     showStatus('Matching criteria saved!', 'success');
-    
+
     // Hide editor
     document.getElementById('weightsEditor').style.display = 'none';
     document.getElementById('editWeightsBtn').textContent = 'Edit Matching Weights';
   });
-  
+
   // Cancel
   document.getElementById('cancelWeightsBtn')?.addEventListener('click', () => {
     document.getElementById('weightsEditor').style.display = 'none';
     document.getElementById('editWeightsBtn').textContent = 'Edit Matching Weights';
   });
-  
+
   // Reset to defaults
   document.getElementById('resetDefaultsBtn')?.addEventListener('click', async () => {
     const result = await chrome.storage.local.get(['resumeData']);
@@ -880,17 +880,17 @@ function attachItemListeners(item) {
   const input = item.querySelector('.weight-input');
   const deleteBtn = item.querySelector('.delete-btn');
   const checkbox = item.querySelector('.weight-item-checkbox');
-  
+
   if (slider && input) {
     slider.addEventListener('input', (e) => {
       input.value = e.target.value;
     });
-    
+
     input.addEventListener('input', (e) => {
       slider.value = e.target.value;
     });
   }
-  
+
   if (deleteBtn) {
     deleteBtn.addEventListener('click', () => {
       if (confirm('Remove this criteria?')) {
@@ -899,7 +899,7 @@ function attachItemListeners(item) {
       }
     });
   }
-  
+
   if (checkbox) {
     checkbox.addEventListener('change', (e) => {
       item.classList.toggle('selected', e.target.checked);
@@ -914,7 +914,7 @@ function setupBulkOperations() {
   const selectAllCheckbox = document.getElementById('selectAllCheckbox');
   const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
   const clearAllBtn = document.getElementById('clearAllBtn');
-  
+
   if (selectAllCheckbox) {
     selectAllCheckbox.addEventListener('change', (e) => {
       const checkboxes = document.querySelectorAll('.weight-item-checkbox');
@@ -928,7 +928,7 @@ function setupBulkOperations() {
       updateBulkDeleteVisibility();
     });
   }
-  
+
   if (bulkDeleteBtn) {
     bulkDeleteBtn.addEventListener('click', () => {
       const selectedItems = document.querySelectorAll('.weight-item.selected');
@@ -942,7 +942,7 @@ function setupBulkOperations() {
       }
     });
   }
-  
+
   if (clearAllBtn) {
     clearAllBtn.addEventListener('click', () => {
       const allItems = document.querySelectorAll('.weight-item');
@@ -997,19 +997,19 @@ async function loadHistoryStats() {
       document.head.appendChild(script);
       await new Promise(resolve => script.onload = resolve);
     }
-    
+
     // Initialize history service
     const historyService = new HistoryService();
     await historyService.init();
-    
+
     // Get stats
     const stats = await historyService.getStats();
-    
+
     // Display today's stats
     document.getElementById('todayCount').textContent = `${stats.today.totalScored} profiles`;
     document.getElementById('weekCount').textContent = `${stats.week.total} profiles`;
     document.getElementById('avgScore').textContent = stats.week.average || 0;
-    
+
     // Display recent scores
     const scoresList = document.getElementById('scoresList');
     if (stats.recentScores && stats.recentScores.length > 0) {
@@ -1026,10 +1026,10 @@ async function loadHistoryStats() {
     } else {
       scoresList.innerHTML = '<div style="color: #999; font-size: 11px;">No profiles scored yet</div>';
     }
-    
+
     // Clean old data (older than 30 days)
     await historyService.clearOldData(30);
-    
+
   } catch (error) {
     console.warn('Could not load history stats:', error);
     // Don't show error to user, just log it
@@ -1041,7 +1041,7 @@ function showStatus(message, type) {
   const statusEl = document.getElementById('uploadStatus');
   statusEl.textContent = message;
   statusEl.className = `upload-status ${type}`;
-  
+
   if (type !== 'loading') {
     setTimeout(() => {
       statusEl.className = 'upload-status';
@@ -1052,22 +1052,22 @@ function showStatus(message, type) {
 async function setupToggleSwitches() {
   // Load current settings
   const settings = await chrome.storage.local.get(['useLLMForBatch', 'useLLMAnalysis']);
-  
+
   // Set initial toggle states
   const llmBatchToggle = document.getElementById('llmBatchToggle');
   const llmAnalysisToggle = document.getElementById('llmAnalysisToggle');
-  
+
   if (llmBatchToggle) {
     llmBatchToggle.checked = settings.useLLMForBatch === true;
-    
+
     // Add event listener for batch toggle
     llmBatchToggle.addEventListener('change', async (e) => {
       await chrome.storage.local.set({ useLLMForBatch: e.target.checked });
-      
+
       // Show feedback
       const noteEl = llmBatchToggle.closest('.setting-item').querySelector('.setting-note small');
       const originalText = noteEl.textContent;
-      
+
       if (e.target.checked) {
         noteEl.textContent = '✅ AI batch scoring enabled! Refresh LinkedIn page to apply.';
         noteEl.style.color = '#22C55E';
@@ -1075,7 +1075,7 @@ async function setupToggleSwitches() {
         noteEl.textContent = '⚪ AI batch scoring disabled. Using local scoring for better performance.';
         noteEl.style.color = '#6B7280';
       }
-      
+
       // Revert to original text after 3 seconds
       setTimeout(() => {
         noteEl.textContent = originalText;
@@ -1083,14 +1083,14 @@ async function setupToggleSwitches() {
       }, 3000);
     });
   }
-  
+
   if (llmAnalysisToggle) {
     llmAnalysisToggle.checked = settings.useLLMAnalysis !== false; // Default to true
-    
+
     // Add event listener for analysis toggle
     llmAnalysisToggle.addEventListener('change', async (e) => {
       await chrome.storage.local.set({ useLLMAnalysis: e.target.checked });
-      
+
       // Show feedback (no note element for this toggle, so just console log)
       console.log('LLM Analysis', e.target.checked ? 'enabled' : 'disabled');
     });
@@ -1114,7 +1114,7 @@ function showLoginUI() {
       <button id="signupBtn" class="action-btn secondary">Create Account</button>
     </div>
   `;
-  
+
   // Add login handlers
   document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
   document.getElementById('signupBtn')?.addEventListener('click', handleSignup);
@@ -1123,12 +1123,12 @@ function showLoginUI() {
 async function handleLogin() {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
-  
+
   if (!email || !password) {
     alert('Please enter email and password');
     return;
   }
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
@@ -1137,14 +1137,14 @@ async function handleLogin() {
       },
       body: JSON.stringify({ email, password })
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Login failed');
     }
-    
+
     const data = await response.json();
-    
+
     // Store auth data
     await chrome.storage.local.set({
       isAuthenticated: true,
@@ -1156,16 +1156,16 @@ async function handleLogin() {
         avgScore: 0
       }
     });
-    
+
     // Notify service worker of auth update
     chrome.runtime.sendMessage({
       action: 'updateAuth',
       token: data.access_token,
       user: data.user
     });
-    
+
     // Notify all LinkedIn tabs to show the sidebar
-    chrome.tabs.query({url: "*://*.linkedin.com/*"}, (tabs) => {
+    chrome.tabs.query({ url: '*://*.linkedin.com/*' }, (tabs) => {
       tabs.forEach(tab => {
         chrome.tabs.sendMessage(tab.id, {
           action: 'authStateChanged',
@@ -1173,9 +1173,9 @@ async function handleLogin() {
         });
       });
     });
-    
+
     window.location.reload();
-    
+
   } catch (error) {
     alert(error.message || 'Login failed');
   }
@@ -1184,12 +1184,12 @@ async function handleLogin() {
 async function handleSignup() {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
-  
+
   if (!email || !password) {
     alert('Please enter email and password');
     return;
   }
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}/auth/signup`, {
       method: 'POST',
@@ -1198,14 +1198,14 @@ async function handleSignup() {
       },
       body: JSON.stringify({ email, password })
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Signup failed');
     }
-    
+
     const data = await response.json();
-    
+
     // Store auth data
     await chrome.storage.local.set({
       isAuthenticated: true,
@@ -1217,16 +1217,16 @@ async function handleSignup() {
         avgScore: 0
       }
     });
-    
+
     // Notify service worker of auth update
     chrome.runtime.sendMessage({
       action: 'updateAuth',
       token: data.access_token,
       user: data.user
     });
-    
+
     // Notify all LinkedIn tabs to show the sidebar
-    chrome.tabs.query({url: "*://*.linkedin.com/*"}, (tabs) => {
+    chrome.tabs.query({ url: '*://*.linkedin.com/*' }, (tabs) => {
       tabs.forEach(tab => {
         chrome.tabs.sendMessage(tab.id, {
           action: 'authStateChanged',
@@ -1234,14 +1234,13 @@ async function handleSignup() {
         });
       });
     });
-    
+
     window.location.reload();
-    
+
   } catch (error) {
     alert(error.message || 'Signup failed');
   }
 }
-
 
 
 // Add additional CSS for login UI
