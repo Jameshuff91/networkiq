@@ -113,14 +113,41 @@ class HistoryService {
     };
     
     matches.forEach(match => {
-      const matchText = (match.text || match || '').toLowerCase();
-      if (matchText.includes('university') || matchText.includes('college')) {
+      // Handle different match formats
+      let matchText = '';
+      if (typeof match === 'string') {
+        matchText = match.toLowerCase();
+      } else if (match && typeof match === 'object') {
+        // Handle match objects from LLM with properties like matches_element, category, etc.
+        matchText = (match.matches_element || match.text || match.found_in_profile || '').toLowerCase();
+        
+        // Use category if available for more accurate categorization
+        if (match.category) {
+          const category = match.category.toLowerCase();
+          if (category === 'education') {
+            categories.education++;
+            return;
+          } else if (category === 'company') {
+            categories.company++;
+            return;
+          } else if (category === 'skill' || category === 'skills') {
+            categories.skills++;
+            return;
+          } else if (category === 'military') {
+            categories.military++;
+            return;
+          }
+        }
+      }
+      
+      // Fallback to text-based categorization
+      if (matchText.includes('university') || matchText.includes('college') || matchText.includes('academy')) {
         categories.education++;
       } else if (matchText.includes('company') || matchText.includes('worked')) {
         categories.company++;
       } else if (matchText.includes('skill') || matchText.includes('technology')) {
         categories.skills++;
-      } else if (matchText.includes('military') || matchText.includes('veteran')) {
+      } else if (matchText.includes('military') || matchText.includes('veteran') || matchText.includes('force')) {
         categories.military++;
       } else if (matchText.includes('location') || matchText.includes('city')) {
         categories.location++;
