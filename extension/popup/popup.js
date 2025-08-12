@@ -10,8 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load and display user data
   await loadUserData();
   
-  // Load and display history stats
-  await loadHistoryStats();
+  // History stats removed - unrestricted version
   
   // Set up event listeners
   setupEventListeners();
@@ -93,12 +92,7 @@ async function loadUserData() {
       updateUsageDisplay(result.stats);
     }
     
-    // Update stats
-    if (result.stats) {
-      document.getElementById('todayScores').textContent = result.stats.todayScores || '0';
-      document.getElementById('highMatches').textContent = result.stats.highMatches || '0';
-      document.getElementById('avgScore').textContent = result.stats.avgScore || '0';
-    }
+    // Stats section removed - skip updating stats elements
     
     // Show resume status if uploaded
     if (result.resumeData) {
@@ -111,9 +105,15 @@ async function loadUserData() {
 }
 
 function updateUsageDisplay(stats) {
+  // Usage display removed for unrestricted version
+  // Check if elements exist before trying to update them
   const usageSection = document.getElementById('usageSection');
   const usageFill = document.getElementById('usageFill');
   const usageCount = document.getElementById('usageCount');
+  
+  if (!usageFill || !usageCount) {
+    return; // Elements don't exist, skip
+  }
   
   const used = stats?.todayScores || 0;
   const limit = 10;
@@ -985,6 +985,8 @@ function updateSelectAllCheckbox() {
   }
 }
 
+// Removed - unrestricted version
+/*
 async function loadHistoryStats() {
   try {
     // Check if HistoryService is available
@@ -1033,6 +1035,7 @@ async function loadHistoryStats() {
     // Don't show error to user, just log it
   }
 }
+*/
 
 function showStatus(message, type) {
   const statusEl = document.getElementById('uploadStatus');

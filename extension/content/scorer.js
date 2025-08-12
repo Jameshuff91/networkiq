@@ -309,12 +309,12 @@ class NetworkScorer {
     // Cap the score at 100
     totalScore = Math.min(totalScore, 100);
 
-    // Determine quality tier
-    let tier = 'low';
+    // Determine quality tier with medal system
+    let tier = 'bronze';
     if (totalScore >= 70) {
-      tier = 'high';
+      tier = 'gold';
     } else if (totalScore >= 40) {
-      tier = 'medium';
+      tier = 'silver';
     }
 
     return {
@@ -384,18 +384,50 @@ class NetworkScorer {
    */
   hasMilitaryBackground(text) {
     const militaryIndicators = [
-      'veteran', 'military', 'air force', 'army', 'navy', 'marine',
-      'coast guard', 'space force', 'usaf', 'usafa', 'west point',
-      'naval academy', 'air force academy', 'special forces',
-      'green beret', 'seal', 'ranger', 'airborne', 'active duty',
-      'deployment', 'combat', 'commissioned officer', 'enlisted',
-      'served in', 'military service', 'armed forces', 'defense',
-      'dod', 'pentagon', 'colonel', 'general', 'admiral', 'captain',
-      'major', 'lieutenant', 'sergeant', 'corporal'
+      // Direct military service indicators
+      'veteran', 'military service', 'armed forces', 'active duty',
+      'military experience', 'former military', 'ex-military',
+      
+      // Service branches (must be in context of service)
+      'air force veteran', 'army veteran', 'navy veteran', 'marine veteran',
+      'coast guard veteran', 'space force veteran',
+      'served in the', 'service member',
+      
+      // Military academies
+      'west point', 'naval academy', 'air force academy', 'usafa',
+      'citadel', 'vmi', 'norwich university',
+      
+      // Special forces and units
+      'special forces', 'green beret', 'navy seal', 'army ranger', 
+      'airborne', 'special operations', 'special ops',
+      
+      // Military roles/titles
+      'commissioned officer', 'enlisted', 'military officer',
+      'deployment', 'combat veteran', 'war veteran',
+      
+      // Specific ranks (with context)
+      'colonel ret', 'general ret', 'admiral ret', 'captain usn',
+      'major usa', 'lieutenant col', 'sergeant major', 'master sergeant'
     ];
     
     const lowerText = text.toLowerCase();
-    return militaryIndicators.some(indicator => lowerText.includes(indicator));
+    
+    // Check for direct military indicators
+    const hasDirectMilitary = militaryIndicators.some(indicator => lowerText.includes(indicator));
+    
+    // Additional patterns that indicate military service
+    const militaryPatterns = [
+      /\b(army|navy|air force|marine|coast guard)\s+(veteran|vet|retired|ret\.?)\b/,
+      /\bserved\s+in\s+(the\s+)?(army|navy|air force|marines|coast guard)\b/,
+      /\b(veteran|military)\s+\|/,  // Common in LinkedIn titles
+      /\|\s*(veteran|military)\b/,
+      /\busaf\b/, /\busmc\b/, /\buscg\b/, /\busn\b/, /\busa\b/,  // Military abbreviations
+      /\b\d+\s*years?\s+(military|army|navy|air force|marine)/
+    ];
+    
+    const hasPatternMatch = militaryPatterns.some(pattern => pattern.test(lowerText));
+    
+    return hasDirectMilitary || hasPatternMatch;
   }
 
   /**

@@ -130,6 +130,15 @@ class ProfileAnalyzer:
                     "weight": elem["weight"],
                 }
             )
+        
+        # Debug logging
+        print(f"\n=== BUILDING LLM PROMPT ===")
+        print(f"Profile name: {profile.get('name', 'Unknown')}")
+        print(f"Profile headline: {profile.get('headline', '')[:100]}")
+        print(f"Profile text preview: {profile.get('text', '')[:300]}")
+        print(f"User search elements by category:")
+        for cat, elems in elements_by_category.items():
+            print(f"  {cat}: {[e['display'] for e in elems[:3]]}")
 
         prompt = f"""Analyze this LinkedIn profile and find connections to the user's background.
 

@@ -462,10 +462,14 @@ async def analyze_profile_llm(
         background = user.get("background", {})
         search_elements = background.get("search_elements", [])
 
+    print(f"\n=== ANALYZE PROFILE REQUEST ===")
     print(f"User ID: {user_id}")
+    print(f"Profile Name: {profile.profile_data.get('name', 'Unknown')}")
+    print(f"Profile Headline: {profile.profile_data.get('headline', '')[:100]}")
+    print(f"Profile Text Sample: {profile.profile_data.get('text', '')[:200]}")
     print(f"Search elements count: {len(search_elements)}")
     if search_elements:
-        print(f"First 3 search elements: {search_elements[:3]}")
+        print(f"User's search elements (first 3): {search_elements[:3]}")
 
     if not search_elements:
         # No resume uploaded, use default scoring
