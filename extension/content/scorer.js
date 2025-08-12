@@ -29,25 +29,175 @@ class NetworkScorer {
   }
 
   getDefaultSearchElements() {
-    // Generic search elements for users who haven't uploaded resumes
+    // Enhanced default search elements for users who haven't uploaded resumes
+    // These cover common high-value backgrounds and connections
     return [
+      // Military connections (high weight)
+      {
+        category: "military",
+        value: "veteran",
+        weight: 30,
+        display: "Military Veteran"
+      },
+      {
+        category: "military",
+        value: "green beret",
+        weight: 40,
+        display: "Special Forces"
+      },
+      {
+        category: "military",
+        value: "special forces",
+        weight: 40,
+        display: "Special Forces"
+      },
+      {
+        category: "military",
+        value: "army",
+        weight: 25,
+        display: "U.S. Army"
+      },
+      {
+        category: "military",
+        value: "navy",
+        weight: 25,
+        display: "U.S. Navy"
+      },
+      {
+        category: "military",
+        value: "air force",
+        weight: 25,
+        display: "U.S. Air Force"
+      },
+      {
+        category: "military",
+        value: "marine",
+        weight: 25,
+        display: "U.S. Marines"
+      },
+      
+      // Top tech companies (medium-high weight)
+      {
+        category: "company",
+        value: "palantir",
+        weight: 25,
+        display: "Palantir Technologies"
+      },
+      {
+        category: "company",
+        value: "google",
+        weight: 25,
+        display: "Google"
+      },
+      {
+        category: "company",
+        value: "meta",
+        weight: 25,
+        display: "Meta"
+      },
+      {
+        category: "company",
+        value: "microsoft",
+        weight: 20,
+        display: "Microsoft"
+      },
+      {
+        category: "company",
+        value: "amazon",
+        weight: 20,
+        display: "Amazon"
+      },
+      {
+        category: "company",
+        value: "apple",
+        weight: 20,
+        display: "Apple"
+      },
+      
+      // Elite universities (high weight)
+      {
+        category: "education",
+        value: "stanford",
+        weight: 30,
+        display: "Stanford University"
+      },
+      {
+        category: "education",
+        value: "mit",
+        weight: 30,
+        display: "MIT"
+      },
+      {
+        category: "education",
+        value: "harvard",
+        weight: 30,
+        display: "Harvard University"
+      },
+      {
+        category: "education",
+        value: "columbia",
+        weight: 25,
+        display: "Columbia University"
+      },
+      
+      // Government/Defense
+      {
+        category: "company",
+        value: "dod",
+        weight: 20,
+        display: "Department of Defense"
+      },
+      {
+        category: "company",
+        value: "cia",
+        weight: 25,
+        display: "CIA"
+      },
+      {
+        category: "company",
+        value: "nsa",
+        weight: 25,
+        display: "NSA"
+      },
+      
+      // Key roles
+      {
+        category: "role",
+        value: "software engineer",
+        weight: 15,
+        display: "Software Engineering"
+      },
       {
         category: "role",
         value: "product manager",
-        weight: 20,
+        weight: 15,
         display: "Product Management"
+      },
+      {
+        category: "role",
+        value: "data scientist",
+        weight: 15,
+        display: "Data Science"
+      },
+      
+      // Key skills
+      {
+        category: "skill",
+        value: "machine learning",
+        weight: 10,
+        display: "Machine Learning"
+      },
+      {
+        category: "skill",
+        value: "artificial intelligence",
+        weight: 10,
+        display: "AI"
       },
       {
         category: "skill",
         value: "leadership",
         weight: 10,
         display: "Leadership"
-      },
-      {
-        category: "skill",
-        value: "strategy",
-        weight: 10,
-        display: "Strategy"
       }
     ];
   }
@@ -70,17 +220,26 @@ class NetworkScorer {
     };
 
     // Convert profile text to lowercase for matching
-    const profileText = (profile.text || '').toLowerCase();
+    // Note: parser stores full text as 'fullText' for search results, 'text' for individual profiles
+    const profileText = (profile.text || profile.fullText || '').toLowerCase();
     const profileName = (profile.name || '').toLowerCase();
     const profileHeadline = (profile.headline || profile.title || '').toLowerCase();
-    const profileAbout = (profile.about || '').toLowerCase();
+    const profileAbout = (profile.about || profile.summary || '').toLowerCase();
     const profileCompany = (profile.company || '').toLowerCase();
     const profileLocation = (profile.location || '').toLowerCase();
     const profileExperience = (profile.experience || '').toLowerCase();
     const profileEducation = (profile.education || '').toLowerCase();
+    const profileMutual = (profile.mutualConnections || '').toLowerCase();
     
     // Combine all text for searching - include all available fields
-    const fullText = `${profileText} ${profileName} ${profileHeadline} ${profileAbout} ${profileCompany} ${profileLocation} ${profileExperience} ${profileEducation}`.replace(/\s+/g, ' ').trim();
+    const fullText = `${profileText} ${profileName} ${profileHeadline} ${profileAbout} ${profileCompany} ${profileLocation} ${profileExperience} ${profileEducation} ${profileMutual}`.replace(/\s+/g, ' ').trim();
+    
+    // Check if profile has military background (broader matching)
+    const profileHasMilitary = this.hasMilitaryBackground(fullText);
+    const userHasMilitary = this.searchElements.some(el => 
+      el.category === 'military' || 
+      this.isMilitaryRelated(el.value || el.text || '')
+    );
 
     // Debug: Show what we're searching through
     if (profile.name && (fullText.includes('air force academy') || fullText.includes('haley'))) {
@@ -94,16 +253,41 @@ class NetworkScorer {
     // Score based on search elements
     for (const element of this.searchElements) {
       const searchValue = (element.value || element.text || '').toLowerCase();
+      const elementCategory = element.category || '';
       
-      // Check if the profile contains this search element
-      if (this.containsMatch(fullText, searchValue)) {
+      let isMatch = false;
+      let matchReason = '';
+      
+      // Special handling for military - brotherhood matching
+      if (elementCategory === 'military' || this.isMilitaryRelated(searchValue)) {
+        // If user has military background and profile has military, it's a match
+        if (profileHasMilitary) {
+          isMatch = true;
+          matchReason = 'Military Brotherhood';
+          console.log(`NetworkIQ: Military brotherhood match for ${profile.name} - both have military backgrounds`);
+        }
+      } 
+      // For education and company - exact matching required
+      else if (elementCategory === 'education' || elementCategory === 'company') {
+        isMatch = this.containsMatch(fullText, searchValue);
+        if (isMatch) {
+          matchReason = `Exact ${elementCategory} match`;
+        }
+      }
+      // For other categories - flexible matching
+      else {
+        isMatch = this.containsMatch(fullText, searchValue);
+        if (isMatch) {
+          matchReason = 'Keyword match';
+        }
+      }
+      
+      // Add score if matched
+      if (isMatch) {
         totalScore += element.weight;
         
         // Debug all matches for troubleshooting
-        console.log(`NetworkIQ: Found match "${searchValue}" (weight: ${element.weight}) for ${profile.name}`);
-        if (searchValue.includes('air force') || searchValue.includes('academy') || searchValue.includes('usafa')) {
-          console.log(`NetworkIQ: ⭐ Military match found! Text: "${fullText.substring(0, 500)}"`);
-        }
+        console.log(`NetworkIQ: Found match "${searchValue}" (weight: ${element.weight}, reason: ${matchReason}) for ${profile.name}`);
         
         // Track breakdown by category
         if (breakdown[element.category] !== undefined) {
@@ -114,7 +298,7 @@ class NetworkScorer {
         const matchText = element.display || element.value || element.text;
         if (matchText && matchText !== 'undefined') {
           matches.push({
-            text: matchText,
+            text: matchReason === 'Military Brotherhood' ? 'Military Connection' : matchText,
             weight: element.weight,
             category: element.category
           });
@@ -170,6 +354,48 @@ class NetworkScorer {
     
     // Return true if either condition is met
     return allWordsPresent || exactPhrasePresent;
+  }
+
+  /**
+   * Check if a search term is military-related
+   * @param {string} term - Term to check
+   * @returns {boolean}
+   */
+  isMilitaryRelated(term) {
+    const militaryKeywords = [
+      'air force', 'army', 'navy', 'marine', 'coast guard', 'space force',
+      'military', 'veteran', 'active duty', 'reserve', 'national guard',
+      'usaf', 'usafa', 'west point', 'naval academy', 'annapolis',
+      'air force academy', 'citadel', 'vmi', 'norwich',
+      'special forces', 'green beret', 'seal', 'ranger', 'airborne',
+      'combat', 'deployment', 'commissioned', 'enlisted', 'officer',
+      'colonel', 'general', 'admiral', 'captain', 'major', 'lieutenant',
+      'sergeant', 'corporal', 'specialist'
+    ];
+    
+    const lowerTerm = term.toLowerCase();
+    return militaryKeywords.some(keyword => lowerTerm.includes(keyword));
+  }
+
+  /**
+   * Check if profile text indicates military background
+   * @param {string} text - Full profile text
+   * @returns {boolean}
+   */
+  hasMilitaryBackground(text) {
+    const militaryIndicators = [
+      'veteran', 'military', 'air force', 'army', 'navy', 'marine',
+      'coast guard', 'space force', 'usaf', 'usafa', 'west point',
+      'naval academy', 'air force academy', 'special forces',
+      'green beret', 'seal', 'ranger', 'airborne', 'active duty',
+      'deployment', 'combat', 'commissioned officer', 'enlisted',
+      'served in', 'military service', 'armed forces', 'defense',
+      'dod', 'pentagon', 'colonel', 'general', 'admiral', 'captain',
+      'major', 'lieutenant', 'sergeant', 'corporal'
+    ];
+    
+    const lowerText = text.toLowerCase();
+    return militaryIndicators.some(indicator => lowerText.includes(indicator));
   }
 
   /**

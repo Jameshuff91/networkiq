@@ -11,40 +11,70 @@ class HistoryService {
   }
 
   async init() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
-      
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        this.db = request.result;
-        resolve();
-      };
-      
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        
-        // Store only privacy-compliant data
-        if (!db.objectStoreNames.contains('scores')) {
-          const scoresStore = db.createObjectStore('scores', { 
-            keyPath: 'id', 
-            autoIncrement: true 
-          });
-          scoresStore.createIndex('timestamp', 'timestamp', { unique: false });
-          scoresStore.createIndex('date', 'date', { unique: false });
-          scoresStore.createIndex('tier', 'tier', { unique: false });
+    try {
+      // Check if IndexedDB is available
+      if (!window.indexedDB) {
+        console.warn('NetworkIQ: IndexedDB not available, using localStorage fallback');
+        this.useLocalStorage = true;
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve, reject) => {
+        try {
+          const request = indexedDB.open(this.dbName, this.dbVersion);
+          
+          request.onerror = () => {
+            console.warn('NetworkIQ: IndexedDB error, falling back to localStorage:', request.error);
+            this.useLocalStorage = true;
+            resolve(); // Don't reject, just use fallback
+          };
+          
+          request.onsuccess = () => {
+            this.db = request.result;
+            this.useLocalStorage = false;
+            resolve();
+          };
+          
+          request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            // Store only privacy-compliant data
+            if (!db.objectStoreNames.contains('scores')) {
+              const scoresStore = db.createObjectStore('scores', { 
+                keyPath: 'id', 
+                autoIncrement: true 
+              });
+              scoresStore.createIndex('timestamp', 'timestamp', { unique: false });
+              scoresStore.createIndex('date', 'date', { unique: false });
+              scoresStore.createIndex('tier', 'tier', { unique: false });
+            }
+            
+            // Daily aggregated stats (no personal data)
+            if (!db.objectStoreNames.contains('dailyStats')) {
+              const statsStore = db.createObjectStore('dailyStats', { 
+                keyPath: 'date' 
+              });
+            }
+          };
+        } catch (error) {
+          console.warn('NetworkIQ: Failed to open IndexedDB, using localStorage:', error);
+          this.useLocalStorage = true;
+          resolve();
         }
-        
-        // Daily aggregated stats (no personal data)
-        if (!db.objectStoreNames.contains('dailyStats')) {
-          const statsStore = db.createObjectStore('dailyStats', { 
-            keyPath: 'date' 
-          });
-        }
-      };
-    });
+      });
+    } catch (error) {
+      console.warn('NetworkIQ: Init error, using localStorage fallback:', error);
+      this.useLocalStorage = true;
+      return Promise.resolve();
+    }
   }
 
   async addScore(scoreData) {
+    // If using localStorage fallback
+    if (this.useLocalStorage) {
+      return this.addScoreToLocalStorage(scoreData);
+    }
+    
     // Store only non-identifying information
     const privacyData = {
       timestamp: new Date().toISOString(),
@@ -184,6 +214,10 @@ class HistoryService {
   }
 
   async getStats() {
+    if (this.useLocalStorage) {
+      return this.getStatsFromLocalStorage(7);
+    }
+    
     const [recentScores, dailyStats] = await Promise.all([
       this.getRecentScores(100),
       this.getDailyStats(30)
@@ -243,6 +277,120 @@ class HistoryService {
       
       request.onerror = () => reject(request.error);
     });
+  }
+  
+  // LocalStorage fallback methods
+  async addScoreToLocalStorage(scoreData) {
+    try {
+      const privacyData = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleDateString(),
+        score: scoreData.score,
+        tier: scoreData.tier,
+        matchCount: (scoreData.matches || []).length,
+        matchTypes: this.categorizeMatches(scoreData.matches || []),
+        hasMessage: !!scoreData.message,
+        source: scoreData.source || 'individual'
+      };
+      
+      // Get existing scores
+      const scores = JSON.parse(localStorage.getItem('networkiq_scores') || '[]');
+      scores.push(privacyData);
+      
+      // Keep only last 100 scores to avoid storage issues
+      const recentScores = scores.slice(-100);
+      localStorage.setItem('networkiq_scores', JSON.stringify(recentScores));
+      
+      // Update daily stats
+      this.updateDailyStatsInLocalStorage(privacyData);
+      
+      return Promise.resolve(privacyData.id);
+    } catch (error) {
+      console.warn('NetworkIQ: Failed to save to localStorage:', error);
+      return Promise.resolve(null);
+    }
+  }
+  
+  async getStatsFromLocalStorage(days = 7) {
+    try {
+      const scores = JSON.parse(localStorage.getItem('networkiq_scores') || '[]');
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      
+      const recentScores = scores.filter(s => new Date(s.timestamp) > cutoffDate);
+      
+      return {
+        totalScored: recentScores.length,
+        averageScore: recentScores.reduce((acc, s) => acc + s.score, 0) / (recentScores.length || 1),
+        tierBreakdown: this.getTierBreakdown(recentScores),
+        dailyActivity: this.getDailyActivity(recentScores)
+      };
+    } catch (error) {
+      console.warn('NetworkIQ: Failed to get stats from localStorage:', error);
+      return {
+        totalScored: 0,
+        averageScore: 0,
+        tierBreakdown: {},
+        dailyActivity: []
+      };
+    }
+  }
+  
+  updateDailyStatsInLocalStorage(privacyData) {
+    try {
+      const stats = JSON.parse(localStorage.getItem('networkiq_daily_stats') || '{}');
+      const today = privacyData.date;
+      
+      if (!stats[today]) {
+        stats[today] = {
+          count: 0,
+          totalScore: 0,
+          tiers: {}
+        };
+      }
+      
+      stats[today].count++;
+      stats[today].totalScore += privacyData.score;
+      stats[today].tiers[privacyData.tier] = (stats[today].tiers[privacyData.tier] || 0) + 1;
+      
+      localStorage.setItem('networkiq_daily_stats', JSON.stringify(stats));
+    } catch (error) {
+      console.warn('NetworkIQ: Failed to update daily stats:', error);
+    }
+  }
+  
+  getTierBreakdown(scores) {
+    const breakdown = {};
+    scores.forEach(s => {
+      breakdown[s.tier] = (breakdown[s.tier] || 0) + 1;
+    });
+    return breakdown;
+  }
+  
+  getDailyActivity(scores) {
+    const activity = {};
+    scores.forEach(s => {
+      const date = s.date;
+      if (!activity[date]) {
+        activity[date] = {
+          count: 0,
+          avgScore: 0,
+          scores: []
+        };
+      }
+      activity[date].count++;
+      activity[date].scores.push(s.score);
+    });
+    
+    // Calculate averages
+    Object.keys(activity).forEach(date => {
+      const scores = activity[date].scores;
+      activity[date].avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+      delete activity[date].scores; // Remove raw scores for privacy
+    });
+    
+    return activity;
   }
 }
 

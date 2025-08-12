@@ -142,15 +142,30 @@ Full Text: {profile.get('text', '')[:1000]}  # Include searchable text
 USER'S BACKGROUND TO MATCH AGAINST:
 {json.dumps(elements_by_category, indent=2)}
 
-INSTRUCTIONS:
-1. Find connections between the profile and user's background
-2. BE STRICT about what constitutes a match - only match if it's the SAME entity
-3. For military connections, recognize service academies, units, bases, ranks
-4. For companies, recognize subsidiaries, divisions, and former names of the SAME company
-5. For education, ONLY match if it's the SAME institution (e.g., both went to MIT, both went to Stanford)
+SPECIAL MATCHING RULES:
 
-CRITICAL MATCHING RULES:
-- Education: MUST be the SAME school/university. Stanford ≠ Johns Hopkins, MIT ≠ Harvard, etc.
+1. MILITARY BROTHERHOOD (High Priority):
+   - ANY military service matches ANY other military service (e.g., Air Force Academy grad matches Army veteran)
+   - This includes: veterans, active duty, reserves, National Guard, service academies, ROTC
+   - Award FULL POINTS for military-to-military connections even if different branches
+   - Examples: "West Point" matches "Naval Academy", "Army" matches "Air Force", "Veteran" matches any military
+
+2. COMPANY MATCHING (Exact Match Required):
+   - Only match if it's the EXACT SAME company or a direct subsidiary
+   - "Google" matches "Google", "Alphabet", or "Google Cloud"
+   - "Palantir" only matches "Palantir" or "Palantir Technologies"
+   - Do NOT match different companies in the same industry
+
+3. EDUCATION MATCHING (Exact Match Required):
+   - Only match if it's the EXACT SAME institution
+   - "MIT" matches "MIT" or "Massachusetts Institute of Technology"
+   - Do NOT match different schools even if both are prestigious
+
+4. SKILLS & KEYWORDS (Flexible Matching):
+   - Match if the skill/keyword is clearly present
+   - Can be more flexible with variations
+
+CRITICAL:
 - "USAFA", "Air Force Academy", "United States Air Force Academy" all refer to the same academy
 - Company variations like "Google", "Alphabet", "Google Cloud" refer to the same company
 - Different universities are NEVER a match, even if both are prestigious

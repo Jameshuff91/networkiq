@@ -204,35 +204,13 @@ class NetworkIQUI {
       
       if (useLLM) {
         try {
-          // First check cache
-          try {
-            const cachedResult = await window.profileAnalysisCache.get(profile.url, this.scorer.searchElements);
-            if (cachedResult) {
-              console.log('NetworkIQ: Cache hit for individual profile:', profile.name);
-              scoreData = {
-                score: cachedResult.score,
-                tier: cachedResult.tier,
-                matches: cachedResult.matches || [],
-                breakdown: cachedResult.breakdown || this.buildBreakdownFromMatches(cachedResult.matches || []),
-                insights: cachedResult.insights || [],
-                hiddenConnections: cachedResult.hidden_connections || [],
-                recommendation: cachedResult.recommendation || '',
-                message: cachedResult.message,
-                cached: true
-              };
-            }
-          } catch (error) {
-            console.warn('NetworkIQ: Cache error for individual profile:', error);
-          }
-          
-          // If not cached, proceed with LLM or local scoring
-          if (!scoreData) {
-            // Check if extension context is still valid
-            if (!chrome.runtime?.id) {
-              console.log('NetworkIQ: Extension context invalid, using local scoring');
-              scoreData = this.scorer.calculateScore(profile);
-            } else {
-              console.log('NetworkIQ: Sending sanitized data to LLM');
+          // NO CACHING - Always get fresh scores
+          // Check if extension context is still valid
+          if (!chrome.runtime?.id) {
+            console.log('NetworkIQ: Extension context invalid, using local scoring');
+            scoreData = this.scorer.calculateScore(profile);
+          } else {
+            console.log('NetworkIQ: Sending sanitized data to LLM');
             // Sanitize profile data before sending to LLM
             const sanitizedProfile = this.sanitizeProfileForLLM(profile);
             const response = await safeChromeSendMessage({
@@ -243,14 +221,6 @@ class NetworkIQUI {
             
             if (response && !response.error) {
               console.log('NetworkIQ: LLM response for', profile.name, ':', response);
-              
-              // Cache the raw response for future use
-              try {
-                await window.profileAnalysisCache.set(profile.url, this.scorer.searchElements, response);
-                console.log(`NetworkIQ: Cached individual profile result for ${profile.name}`);
-              } catch (error) {
-                console.warn('NetworkIQ: Failed to cache individual profile result:', error);
-              }
               
               // Format LLM response to match local scorer format
               scoreData = {
@@ -267,7 +237,6 @@ class NetworkIQUI {
             } else {
               console.log('NetworkIQ: LLM response error, using local scoring:', response);
               scoreData = this.scorer.calculateScore(profile);
-            }
             }
           }
         } catch (error) {
@@ -1589,25 +1558,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     sendResponse({ success: true });
   } else if (request.action === 'clearProfileCache') {
-    console.log('NetworkIQ: Clearing profile cache due to:', request.reason);
-    try {
-      if (window.profileAnalysisCache) {
-        window.profileAnalysisCache.clearAll().then(() => {
-          console.log('NetworkIQ: Profile cache cleared successfully');
-          sendResponse({ success: true });
-        }).catch(error => {
-          console.error('NetworkIQ: Failed to clear cache:', error);
-          sendResponse({ success: false, error: error.message });
-        });
-      } else {
-        console.log('NetworkIQ: Cache not available yet');
-        sendResponse({ success: false, error: 'Cache not initialized' });
-      }
-    } catch (error) {
-      console.error('NetworkIQ: Error clearing cache:', error);
-      sendResponse({ success: false, error: error.message });
-    }
-    return true; // Will respond asynchronously
+    // Cache removed - just respond success
+    console.log('NetworkIQ: Cache clearing requested but cache is disabled');
+    sendResponse({ success: true });
   }
 });
 
