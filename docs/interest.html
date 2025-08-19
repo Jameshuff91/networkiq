@@ -179,8 +179,31 @@
     
     <script>
         const USER_KEY = 'networkiq_user_interested';
+        const COUNTER_KEY = 'networkiq-interest-2025'; // Unique key for our counter
+        
+        // Track page visit (everyone who lands on the page)
+        fetch(`https://countapi.mileshilliard.com/api/v1/hit/${COUNTER_KEY}`)
+            .then(res => res.json())
+            .then(data => {
+                // Only show count if admin parameter is present
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('admin') === 'true') {
+                    const counterDiv = document.createElement('div');
+                    counterDiv.style.cssText = 'position: fixed; bottom: 10px; right: 10px; background: #667eea; color: white; padding: 10px; border-radius: 5px; font-family: monospace;';
+                    counterDiv.innerHTML = `Visitors: ${data.value}`;
+                    document.body.appendChild(counterDiv);
+                }
+                console.log(`Total visitors: ${data.value}`);
+            })
+            .catch(err => console.log('Counter API unavailable'));
         
         function registerInterest() {
+            // Track button click separately
+            fetch(`https://countapi.mileshilliard.com/api/v1/hit/${COUNTER_KEY}-clicks`)
+                .then(res => res.json())
+                .then(data => console.log(`Button clicks: ${data.value}`))
+                .catch(err => console.log('Could not track click'));
+            
             // Track with Google Analytics
             if (typeof gtag !== 'undefined') {
                 gtag('event', 'interest_button_clicked', {
@@ -210,6 +233,15 @@
             if (localStorage.getItem(USER_KEY)) {
                 document.getElementById('interest-form').innerHTML = 
                     '<p style="color: #667eea; font-size: 1.1em;">✓ You\'ve already registered your interest!</p>';
+            }
+            
+            // Check both counters if admin
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('admin') === 'true') {
+                fetch(`https://countapi.mileshilliard.com/api/v1/get/${COUNTER_KEY}-clicks`)
+                    .then(res => res.json())
+                    .then(data => console.log(`Total button clicks: ${data.value || 0}`))
+                    .catch(err => console.log('No clicks yet'));
             }
         });
     </script>
