@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetworkIQ - AI-Powered LinkedIn Networking</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .tagline {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        
+        .description {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        
+        .interest-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-block;
+        }
+        
+        .interest-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .interest-button:active {
+            transform: translateY(0);
+        }
+        
+        .counter {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .counter-number {
+            font-size: 2em;
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .counter-text {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .thank-you {
+            display: none;
+            padding: 20px;
+            background: #d4edda;
+            border-radius: 10px;
+            color: #155724;
+            margin-top: 20px;
+        }
+        
+        .features {
+            text-align: left;
+            margin: 30px 0;
+        }
+        
+        .feature {
+            margin: 15px 0;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .feature-icon {
+            color: #667eea;
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        
+        .email-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 1em;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .email-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .optional-text {
+            font-size: 0.9em;
+            color: #999;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>NetworkIQ</h1>
+        <p class="tagline">AI-Powered LinkedIn Networking Intelligence</p>
+        
+        <p class="description">
+            Score LinkedIn profiles instantly based on your background. 
+            Generate personalized connection messages that get responses.
+        </p>
+        
+        <div class="features">
+            <div class="feature">
+                <span class="feature-icon">✨</span>
+                <span>Smart scoring based on your resume & background</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">🎯</span>
+                <span>Find high-value connections in seconds</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">💬</span>
+                <span>AI-generated personalized messages</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">⚡</span>
+                <span>Works directly in LinkedIn as a Chrome extension</span>
+            </div>
+        </div>
+        
+        <div id="interest-form">
+            <button class="interest-button" onclick="registerInterest()">
+                I'm Interested! Notify Me When It Launches
+            </button>
+        </div>
+        
+        <div id="thank-you" class="thank-you">
+            <h3>🎉 Thank you for your interest!</h3>
+            <p>We're tracking interest and will launch payments once we hit our target.</p>
+            <p style="margin-top: 10px;">Share with your network to help us launch faster!</p>
+        </div>
+    </div>
+    
+    <script>
+        const USER_KEY = 'networkiq_user_interested';
+        
+        function registerInterest() {
+            // Track with Google Analytics
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'interest_button_clicked', {
+                    'event_category': 'engagement',
+                    'event_label': 'interest_registration'
+                });
+            }
+            
+            // Track UTM parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const source = urlParams.get('utm_source') || 'direct';
+            const medium = urlParams.get('utm_medium') || 'none';
+            const campaign = urlParams.get('utm_campaign') || 'none';
+            
+            console.log('Interest registered:', { source, medium, campaign });
+            
+            // Show thank you message
+            document.getElementById('interest-form').style.display = 'none';
+            document.getElementById('thank-you').style.display = 'block';
+            
+            // Remember they clicked
+            localStorage.setItem(USER_KEY, 'true');
+        }
+        
+        // Check if user already registered
+        window.addEventListener('DOMContentLoaded', function() {
+            if (localStorage.getItem(USER_KEY)) {
+                document.getElementById('interest-form').innerHTML = 
+                    '<p style="color: #667eea; font-size: 1.1em;">✓ You\'ve already registered your interest!</p>';
+            }
+        });
+    </script>
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-XXXXXXXXXX'); // Replace with your GA4 ID
+    </script>
+</body>
+</html>
