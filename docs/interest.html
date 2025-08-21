@@ -181,21 +181,31 @@
         const USER_KEY = 'networkiq_user_interested';
         const COUNTER_KEY = 'networkiq-interest-2025'; // Unique key for our counter
         
-        // Track page visit (everyone who lands on the page)
-        fetch(`https://countapi.mileshilliard.com/api/v1/hit/${COUNTER_KEY}`)
-            .then(res => res.json())
-            .then(data => {
-                // Only show count if admin parameter is present
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('admin') === 'true') {
+        // Track page visit (but not admin visits)
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdmin = urlParams.get('admin') === 'true';
+        
+        if (!isAdmin) {
+            // Only count non-admin visits
+            fetch(`https://countapi.mileshilliard.com/api/v1/hit/${COUNTER_KEY}`)
+                .then(res => res.json())
+                .then(data => {
+                    console.log(`Total visitors: ${data.value}`);
+                })
+                .catch(err => console.log('Counter API unavailable'));
+        } else {
+            // Admin view - just get the count without incrementing
+            fetch(`https://countapi.mileshilliard.com/api/v1/get/${COUNTER_KEY}`)
+                .then(res => res.json())
+                .then(data => {
                     const counterDiv = document.createElement('div');
                     counterDiv.style.cssText = 'position: fixed; bottom: 10px; right: 10px; background: #667eea; color: white; padding: 10px; border-radius: 5px; font-family: monospace;';
-                    counterDiv.innerHTML = `Visitors: ${data.value}`;
+                    counterDiv.innerHTML = `Visitors: ${data.value || 0}`;
                     document.body.appendChild(counterDiv);
-                }
-                console.log(`Total visitors: ${data.value}`);
-            })
-            .catch(err => console.log('Counter API unavailable'));
+                    console.log(`Total visitors (admin view): ${data.value || 0}`);
+                })
+                .catch(err => console.log('Counter not initialized yet'));
+        }
         
         function registerInterest() {
             // Track button click separately
