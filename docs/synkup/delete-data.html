@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Your Data - SynkUp</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        .info-box {
+            background-color: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success-box {
+            background-color: #e8f5e9;
+            border: 1px solid #4caf50;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        ul {
+            padding-left: 30px;
+        }
+        li {
+            margin: 10px 0;
+        }
+        .data-type-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #fafafa;
+        }
+        .data-type-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .data-icon {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+        .button-section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .contact-button {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .contact-button:hover {
+            background-color: #2980b9;
+        }
+        .method-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #fafafa;
+        }
+        .method-number {
+            background-color: #3498db;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .timeline {
+            color: #666;
+            font-style: italic;
+            margin: 10px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .deletable {
+            color: #27ae60;
+            font-weight: 500;
+        }
+        .not-deletable {
+            color: #e74c3c;
+            font-weight: 500;
+        }
+        .partial {
+            color: #f39c12;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Delete Your Data from SynkUp</h1>
+        
+        <div class="success-box">
+            <strong>✓ Your Privacy Matters</strong>
+            <p>You have the right to delete your personal data from SynkUp at any time. This page explains what data you can delete and how to do it while keeping your account active.</p>
+        </div>
+
+        <h2>Types of Data You Can Delete</h2>
+        <p>You can selectively delete different types of data from your SynkUp account without deleting the account itself:</p>
+
+        <div class="data-type-card">
+            <div class="data-type-header">
+                <span class="data-icon">📍</span>
+                <h3>Location Data</h3>
+            </div>
+            <ul>
+                <li><strong>Location history:</strong> All saved locations from past meetings</li>
+                <li><strong>Favorite places:</strong> Your saved venue preferences</li>
+                <li><strong>Home/Work addresses:</strong> Any saved addresses</li>
+            </ul>
+            <p><strong>How to delete:</strong> Settings → Privacy → Location Data → Clear Location History</p>
+        </div>
+
+        <div class="data-type-card">
+            <div class="data-type-header">
+                <span class="data-icon">📅</span>
+                <h3>Meeting History</h3>
+            </div>
+            <ul>
+                <li><strong>Past meetings:</strong> Records of meetings you've created or attended</li>
+                <li><strong>Meeting preferences:</strong> Your default meeting settings</li>
+                <li><strong>Recurring meetings:</strong> Templates for regular meetings</li>
+            </ul>
+            <p><strong>How to delete:</strong> Settings → Data & Privacy → Meeting History → Delete All</p>
+        </div>
+
+        <div class="data-type-card">
+            <div class="data-type-header">
+                <span class="data-icon">👥</span>
+                <h3>Contacts and Connections</h3>
+            </div>
+            <ul>
+                <li><strong>Imported contacts:</strong> Contacts synced from your device</li>
+                <li><strong>SynkUp connections:</strong> Users you've connected with</li>
+                <li><strong>Blocked users:</strong> Your block list</li>
+            </ul>
+            <p><strong>How to delete:</strong> Settings → Contacts → Manage Contacts → Remove All</p>
+        </div>
+
+        <div class="data-type-card">
+            <div class="data-type-header">
+                <span class="data-icon">💬</span>
+                <h3>Messages and Feedback</h3>
+            </div>
+            <ul>
+                <li><strong>Chat messages:</strong> Conversations within meetings</li>
+                <li><strong>Meeting feedback:</strong> Reviews and ratings you've provided</li>
+                <li><strong>Support tickets:</strong> Your communication with support</li>
+            </ul>
+            <p><strong>How to delete:</strong> Individual messages can be deleted in-app; bulk deletion via support request</p>
+        </div>
+
+        <div class="data-type-card">
+            <div class="data-type-header">
+                <span class="data-icon">📊</span>
+                <h3>Usage Analytics</h3>
+            </div>
+            <ul>
+                <li><strong>App usage patterns:</strong> How you use the app</li>
+                <li><strong>Feature preferences:</strong> Which features you use most</li>
+                <li><strong>Performance data:</strong> App performance metrics</li>
+            </ul>
+            <p><strong>How to delete:</strong> Settings → Privacy → Analytics → Opt Out & Delete History</p>
+        </div>
+
+        <h2>Data Deletion Overview</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data Type</th>
+                    <th>Can Delete Individually</th>
+                    <th>Retention After Deletion</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Profile Information</td>
+                    <td class="partial">Partial (except email)</td>
+                    <td>Immediate</td>
+                </tr>
+                <tr>
+                    <td>Location History</td>
+                    <td class="deletable">Yes</td>
+                    <td>Immediate</td>
+                </tr>
+                <tr>
+                    <td>Meeting History</td>
+                    <td class="deletable">Yes</td>
+                    <td>Up to 30 days (for recovery)</td>
+                </tr>
+                <tr>
+                    <td>Contacts</td>
+                    <td class="deletable">Yes</td>
+                    <td>Immediate</td>
+                </tr>
+                <tr>
+                    <td>Messages</td>
+                    <td class="deletable">Yes</td>
+                    <td>Immediate (except in others' conversations)</td>
+                </tr>
+                <tr>
+                    <td>Payment Information</td>
+                    <td class="not-deletable">No (managed by payment processor)</td>
+                    <td>Per payment processor policies</td>
+                </tr>
+                <tr>
+                    <td>Analytics Data</td>
+                    <td class="deletable">Yes</td>
+                    <td>Anonymized data may persist</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>How to Request Data Deletion</h2>
+
+        <div class="method-card">
+            <h3><span class="method-number">1</span>Delete from Within the App</h3>
+            <ol>
+                <li>Open the SynkUp app</li>
+                <li>Go to <strong>Settings</strong></li>
+                <li>Select <strong>Data & Privacy</strong></li>
+                <li>Choose <strong>Manage My Data</strong></li>
+                <li>Select the data types you want to delete</li>
+                <li>Tap <strong>Delete Selected Data</strong></li>
+                <li>Confirm your choice</li>
+            </ol>
+            <p class="timeline">Processing time: Immediate for most data types</p>
+        </div>
+
+        <div class="method-card">
+            <h3><span class="method-number">2</span>Email Request</h3>
+            <p>Send a detailed request to <a href="mailto:privacy@synkup.app">privacy@synkup.app</a> including:</p>
+            <ul>
+                <li><strong>Subject:</strong> "Data Deletion Request"</li>
+                <li><strong>Your account email:</strong> For identification</li>
+                <li><strong>Specific data to delete:</strong> List the data types you want removed</li>
+                <li><strong>Timeframe:</strong> If you want data from a specific period deleted</li>
+            </ul>
+            <p class="timeline">Processing time: Within 72 hours</p>
+        </div>
+
+        <h2>Data Export Before Deletion</h2>
+        <div class="info-box">
+            <strong>Want to keep a copy?</strong>
+            <p>Before deleting your data, you can export it for your records:</p>
+            <ol>
+                <li>Go to Settings → Data & Privacy → Export My Data</li>
+                <li>Select the data types to export</li>
+                <li>Choose export format (JSON or CSV)</li>
+                <li>Download your data archive</li>
+            </ol>
+            <p>Your data will be available for download for 7 days.</p>
+        </div>
+
+        <h2>What Data Cannot Be Deleted</h2>
+        <p>Certain data may need to be retained even after a deletion request:</p>
+        <ul>
+            <li><strong>Legal requirements:</strong> Data we're legally obligated to keep (tax records, legal disputes)</li>
+            <li><strong>Security logs:</strong> Limited data to prevent fraud and abuse</li>
+            <li><strong>Anonymized data:</strong> Data that's been completely anonymized and cannot be linked to you</li>
+            <li><strong>Others' data:</strong> Your messages in other users' conversations (will be anonymized)</li>
+            <li><strong>Transaction records:</strong> Basic payment records for accounting purposes</li>
+        </ul>
+
+        <h2>Automatic Data Deletion</h2>
+        <p>SynkUp automatically deletes certain data after specific periods:</p>
+        <ul>
+            <li><strong>Location data:</strong> Deleted after 90 days (unless saved as favorite)</li>
+            <li><strong>Search history:</strong> Deleted after 30 days</li>
+            <li><strong>Temporary files:</strong> Deleted after 7 days</li>
+            <li><strong>Session data:</strong> Deleted after logout</li>
+        </ul>
+
+        <h2>Your Privacy Rights</h2>
+        <h3>Under GDPR (European Users)</h3>
+        <ul>
+            <li>Right to erasure ("right to be forgotten")</li>
+            <li>Right to data portability</li>
+            <li>Right to rectification</li>
+            <li>Right to restrict processing</li>
+        </ul>
+
+        <h3>Under CCPA (California Users)</h3>
+        <ul>
+            <li>Right to delete personal information</li>
+            <li>Right to know what information is collected</li>
+            <li>Right to opt-out of sale (we don't sell data)</li>
+            <li>Right to non-discrimination</li>
+        </ul>
+
+        <h2>After Data Deletion</h2>
+        <div class="success-box">
+            <strong>What to expect:</strong>
+            <ul>
+                <li>You'll receive email confirmation of deletion</li>
+                <li>Some features may reset to defaults</li>
+                <li>You may need to reconfigure preferences</li>
+                <li>Your account remains active with remaining data</li>
+            </ul>
+        </div>
+
+        <h2>Need Help?</h2>
+        <div class="button-section">
+            <p>Our privacy team is here to help with your data deletion requests:</p>
+            <a href="mailto:privacy@synkup.app" class="contact-button">Contact Privacy Team</a>
+            <p style="margin-top: 15px;">Response time: Within 72 hours</p>
+        </div>
+
+        <h2>Related Resources</h2>
+        <ul>
+            <li><a href="privacy.html">Privacy Policy</a> - Full details on our data practices</li>
+            <li><a href="delete-account.html">Delete Account</a> - Permanently delete your account</li>
+            <li><a href="terms.html">Terms of Service</a> - Our terms and conditions</li>
+            <li><a href="support.html">Support Center</a> - Get help with other issues</li>
+        </ul>
+
+        <div class="info-box" style="margin-top: 40px;">
+            <strong>Data Deletion Verification</strong>
+            <p>After requesting data deletion, you can verify that your data has been removed by checking the relevant sections in the app. If you notice any data that should have been deleted but remains, please contact our privacy team immediately at <a href="mailto:privacy@synkup.app">privacy@synkup.app</a>.</p>
+        </div>
+    </div>
+</body>
+</html>
