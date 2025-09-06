@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SynkUp - App Documentation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .link-card {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .link-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .link-card h3 {
+            color: #3498db;
+            margin-top: 0;
+        }
+        .link-card p {
+            color: #666;
+            margin-bottom: 0;
+        }
+        .important {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SynkUp App Documentation</h1>
+        
+        <p>Welcome to the SynkUp documentation portal. Here you'll find important information about managing your account, privacy, and support resources.</p>
+
+        <h2>Account Management</h2>
+        <div class="links-grid">
+            <a href="synkup/delete-account.html" class="link-card important">
+                <h3>Delete Account</h3>
+                <p>Instructions for permanently deleting your SynkUp account and associated data</p>
+            </a>
+            <a href="synkup/delete-data.html" class="link-card">
+                <h3>Delete Specific Data</h3>
+                <p>Remove specific information without deleting your entire account</p>
+            </a>
+        </div>
+
+        <h2>Legal & Privacy</h2>
+        <div class="links-grid">
+            <a href="synkup/privacy.html" class="link-card">
+                <h3>Privacy Policy</h3>
+                <p>Learn about how we collect, use, and protect your data</p>
+            </a>
+            <a href="synkup/terms.html" class="link-card">
+                <h3>Terms of Service</h3>
+                <p>Review our terms and conditions for using SynkUp</p>
+            </a>
+        </div>
+
+        <h2>Support</h2>
+        <div class="links-grid">
+            <a href="synkup/support.html" class="link-card">
+                <h3>Support Center</h3>
+                <p>Get help with issues and find answers to common questions</p>
+            </a>
+            <a href="synkup/index.html" class="link-card">
+                <h3>About SynkUp</h3>
+                <p>Learn more about SynkUp and its features</p>
+            </a>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2024 SynkUp. All rights reserved.</p>
+            <p>For support, contact: <a href="mailto:privacy@synkup.app">privacy@synkup.app</a></p>
+        </div>
+    </div>
+</body>
+</html>
