@@ -89,17 +89,21 @@
             align-items: start;
         }
 
-        /* Left column - Image */
+        /* Left column - Images */
         .left-column {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
+            flex-direction: column;
+            gap: 15px;
+            height: fit-content;
         }
 
         .hero-image {
             animation: fadeIn 1s ease;
             text-align: center;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .hero-image img {
@@ -108,6 +112,7 @@
             height: auto;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            object-fit: cover;
         }
 
         /* Middle column - Form and WhatsApp */
@@ -454,8 +459,12 @@
         </header>
 
         <div class="main-content">
-            <!-- Left Column: Hero Image -->
+            <!-- Left Column: Hero Images -->
             <div class="left-column">
+                <div class="hero-image">
+                    <img src="images/synkup-hero.png"
+                         alt="SynkUp Smart Scheduling">
+                </div>
                 <div class="hero-image">
                     <img src="images/synkup-hero-2.png"
                          alt="SynkUp App Features">
