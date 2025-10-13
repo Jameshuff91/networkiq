@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SynkUp - Find the perfect time & place</title>
-    <meta name="description" content="Join the SynkUp beta testing program. Get early access to our scheduling app for Android and iOS.">
+    <title>SynkUp Beta - Find the perfect time & place</title>
+    <meta name="description" content="Join the SynkUp beta testing program. Get early access to our AI-powered scheduling app for Android and iOS.">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==">
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Jameshuff91/SynkUp/main/mobile/assets/icon.png">
 
     <style>
         * {
@@ -28,64 +28,93 @@
             max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
+        /* Header with icon and title */
         header {
-            text-align: center;
-            padding: 30px 0 20px;
+            padding: 20px 0;
             animation: fadeInDown 0.8s ease;
+            margin-bottom: 30px;
         }
 
-        .logo {
-            display: inline-flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-            justify-content: center;
-        }
-
-        .logo-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 14px;
+        .header-content {
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            overflow: hidden;
+            flex-shrink: 0;
         }
 
         .logo-icon img {
             width: 100%;
             height: 100%;
-            border-radius: 14px;
+            object-fit: cover;
+        }
+
+        .header-text {
+            text-align: left;
         }
 
         h1 {
             font-size: 2.5em;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            line-height: 1.2;
         }
 
         .tagline {
-            font-size: 1.2em;
+            font-size: 1.1em;
             color: #a8b2d1;
-            margin-bottom: 20px;
+        }
+
+        /* Main content - three column layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            gap: 30px;
+            flex: 1;
+            align-items: start;
+        }
+
+        /* Left column - Image */
+        .left-column {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
         }
 
         .hero-image {
-            text-align: center;
-            margin: 30px 0 20px;
             animation: fadeIn 1s ease;
+            text-align: center;
         }
 
         .hero-image img {
-            max-width: 100%;
-            max-height: 400px;
+            width: 100%;
+            max-width: 350px;
             height: auto;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        /* Middle column - Form and WhatsApp */
+        .middle-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .signup-section {
@@ -93,14 +122,19 @@
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 30px;
-            margin: 25px auto;
-            max-width: 600px;
             animation: fadeInUp 0.8s ease;
             border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .form-group {
+        .section-title {
+            font-size: 1.6em;
             margin-bottom: 25px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
         }
 
         label {
@@ -108,12 +142,13 @@
             margin-bottom: 8px;
             color: #cbd5e0;
             font-weight: 500;
+            font-size: 15px;
         }
 
         input[type="email"],
         input[type="text"] {
             width: 100%;
-            padding: 12px 16px;
+            padding: 14px 18px;
             border: 2px solid rgba(102, 126, 234, 0.3);
             border-radius: 10px;
             background: rgba(255,255,255,0.05);
@@ -135,7 +170,7 @@
 
         .submit-btn {
             width: 100%;
-            padding: 14px 28px;
+            padding: 16px 32px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
@@ -144,8 +179,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            margin-top: 10px;
         }
 
         .submit-btn:hover {
@@ -153,80 +187,36 @@
             box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
         }
 
-        .submit-btn:active {
-            transform: translateY(0);
-        }
-
         .submit-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
 
-        .success-message {
+        .success-message, .error-message {
             display: none;
-            padding: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .success-message {
             background: rgba(16, 185, 129, 0.2);
             border: 1px solid #10b981;
-            border-radius: 10px;
             color: #10b981;
-            margin-top: 20px;
-            text-align: center;
         }
 
         .error-message {
-            display: none;
-            padding: 15px;
             background: rgba(239, 68, 68, 0.2);
             border: 1px solid #ef4444;
-            border-radius: 10px;
             color: #ef4444;
-            margin-top: 20px;
-            text-align: center;
         }
 
-        .info-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-        }
-
-        .card {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2);
-        }
-
-        .card-icon {
-            font-size: 2em;
-            margin-bottom: 15px;
-        }
-
-        .card h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-        }
-
-        .card p {
-            color: #cbd5e0;
-            line-height: 1.6;
-        }
-
+        /* WhatsApp section below form */
         .whatsapp-section {
             text-align: center;
-            margin: 30px 0;
-            padding: 25px;
-            background: rgba(37, 211, 102, 0.1);
-            border-radius: 20px;
-            border: 1px solid rgba(37, 211, 102, 0.3);
+            animation: fadeInUp 1s ease 0.3s both;
         }
 
         .whatsapp-btn {
@@ -238,43 +228,106 @@
             color: white;
             text-decoration: none;
             border-radius: 10px;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
             transition: all 0.3s ease;
+            width: 100%;
+            justify-content: center;
         }
 
         .whatsapp-btn:hover {
+            background: #128c7e;
             transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(37, 211, 102, 0.4);
-            background: #20ba5a;
+            box-shadow: 0 10px 30px rgba(37, 211, 102, 0.3);
         }
 
-        .stats {
+        /* Right column - Info cards */
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .info-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 18px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(102, 126, 234, 0.3);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .card h3 {
+            font-size: 1.1em;
+            margin-bottom: 8px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card p {
+            color: #a8b2d1;
+            line-height: 1.5;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .card ul {
+            padding-left: 18px;
+        }
+
+        .card li {
+            color: #a8b2d1;
+            margin-bottom: 4px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        /* Admin stats */
+        .admin-stats {
+            display: none;
             position: fixed;
-            bottom: 20px;
+            top: 20px;
             right: 20px;
             background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(10px);
-            padding: 15px 20px;
+            padding: 15px;
             border-radius: 10px;
-            font-size: 14px;
-            color: #cbd5e0;
-            display: none;
+            border: 1px solid rgba(255,255,255,0.2);
             z-index: 1000;
         }
 
-        .stats.show {
-            display: block;
+        .admin-stats h4 {
+            color: #667eea;
+            margin-bottom: 10px;
         }
 
-        footer {
-            text-align: center;
-            padding: 40px 0;
-            color: #718096;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            margin-top: 80px;
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
         }
 
+        .stat-value {
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -283,7 +336,7 @@
         @keyframes fadeInDown {
             from {
                 opacity: 0;
-                transform: translateY(-30px);
+                transform: translateY(-20px);
             }
             to {
                 opacity: 1;
@@ -294,7 +347,7 @@
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(20px);
             }
             to {
                 opacity: 1;
@@ -302,17 +355,76 @@
             }
         }
 
-        @media (max-width: 768px) {
+        /* Tablet responsiveness */
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .left-column {
+                order: -1;
+                margin-bottom: 20px;
+            }
+
+            .hero-image img {
+                max-width: 400px;
+            }
+
+            .middle-column {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+
+            .right-column {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+
+            .info-cards {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 15px;
+            }
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 640px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .header-text {
+                text-align: center;
+            }
+
             h1 {
                 font-size: 2em;
             }
 
-            .signup-section {
-                padding: 30px 20px;
+            .tagline {
+                font-size: 1em;
             }
 
-            .info-cards {
-                grid-template-columns: 1fr;
+            .signup-section {
+                padding: 20px;
+            }
+
+            .section-title {
+                font-size: 1.3em;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .hero-image img {
+                max-width: 100%;
             }
         }
     </style>
@@ -320,107 +432,159 @@
 <body>
     <div class="container">
         <header>
-            <div class="logo">
+            <div class="header-content">
                 <div class="logo-icon">
-                    <img src="data:image/png;base64,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" alt="SynkUp App Icon">
+                    <img src="https://raw.githubusercontent.com/Jameshuff91/SynkUp/main/mobile/assets/icon.png" alt="SynkUp Logo">
                 </div>
-                <h1>SynkUp</h1>
+                <div class="header-text">
+                    <h1>SynkUp</h1>
+                    <p class="tagline">Find the perfect time & place to meet</p>
+                </div>
             </div>
-            <p class="tagline">Find the perfect time & place</p>
         </header>
 
-        <div class="hero-image">
-            <img src="data:image/jpeg;base64,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AAAAAAAAAABJJJJJJJJJJAAAAAAAAAAEJJJJJJJJJMAAAAAAAAAABJJJJJJJJJJAAAAAAAAAAEJJJJJJJJJIAAAAAAAAADYJJJJJJJJJYAAAAAAAAAA5JJJJJJJJJ4AAAAAAAAAyKJJJJJJJJJOAAAAAAAAAOJJJJJJJJJJfAAAAAAAAC+JJJJJJJJJJ7AAAAAAAACwJJJJJJJJJJLAAAAAAAACqJJJJJJJJJJ6AAAAAAAACxJJJJJJJJJJ0AAAAAAAAAR5JJJJJJJJJQAAAAAAAAQKJJJJJJJJJKAAAAAAAAAADJJJJJJJJJJQAAAAAAAAAC7JJJJJJJJJJ8AAAAAAAACpJJJJJJJJJJKAAAAAAAACJJJJJJJJJJJJOAAAAAAAB4JJJJJJJJJJJJQAAAAAAAAJJJJJJJJJJJJJKAAAAAAAANJJJJJJJJJJJJ8AAAAAADAJJJJJJJJJJJJJiAAAAAAC4JJJJJJJJJJJJJaAAAAABQJJJJJJJJJJJJJJOAAAAAA4JJJJJJJJJJJJJJkAAAAACYJJJJJJJJJJJJJJJAAAAACwJJJJJJJJJJJJJJJoAAAABiJJJJJJJJJJJJJJJEAAAAB0JJJJJJJJJJJJJJJJAAAAD+JJJJJJJJJJJJJJJJkAAAACPRJJJJJJJJJJJJJLAAAAAAAAJJJJJJJJJJJJIAAAAAAAAAJJJJJJJJJJJJkAAAAAAAAAGJJJJJJJJJJJIAAAAAAAAAAJJJJJJJJJJJgAAAAAAAAAAJJJJJJJJJJJAAAAAAAAAAAAJJJJJJJJJJAAAAAAAAAAAOxJJJJJJJJJQAAAAAAAAAAKJJJJJJJJJJQAAAAAAAAAABJJJJJJJJJJkAAAAAAAAAABJJJJJJJJJJQAAAAAAAAAAEJJJJJJJJJJUAAAAAAAAAAEJJJJJJJJJJaAAAAAAAAAAEJJJJJJJJJJsAAAAAAAAAAEJJJJJJJJJJgAAAAAAAAAAEJJJJJJJJJJgAAAAAAAAAAEJJJJJJJJJJgAAAAAAAAAAEJJJJJJJJJJgAAAAAAAAAAEJJJJJJJJJJgAAAAAAAAAABJJJJJJJJJJkAAAAAAAAAABJJJJJJJJJJgAAAAAAAAAAYJJJJJJJJJJkAAAAAAAAAAQJJJJJJJJJJiAAAAAAAAAAJJJJJJJJJJJKAAAAAAAAAAcJJJJJJJJJJoAAAAAA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" alt="SynkUp App Screens">
-        </div>
-
-        <div class="signup-section">
-            <h2 style="text-align: center; margin-bottom: 30px; color: #fff;">Join Our Beta Testing Program</h2>
-
-            <form id="signupForm" action="https://formspree.io/f/xeorpaza" method="POST">
-                <div class="form-group">
-                    <label for="name">Full Name</label>
-                    <input type="text" id="name" name="name" placeholder="Enter your full name" required>
+        <div class="main-content">
+            <!-- Left Column: Hero Image -->
+            <div class="left-column">
+                <div class="hero-image">
+                    <img src="https://raw.githubusercontent.com/Jameshuff91/SynkUp/main/mobile/assets/synkup-hero.png"
+                         alt="SynkUp App Preview">
                 </div>
-
-                <div class="form-group">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" name="email" placeholder="your@email.com" required>
-                </div>
-
-                <button type="submit" class="submit-btn" id="submitBtn">
-                    Sign Up for Beta Access
-                </button>
-
-                <div class="success-message" id="successMsg">
-                    🎉 Thank you for signing up! Check your email for testing instructions.
-                </div>
-
-                <div class="error-message" id="errorMsg">
-                    Something went wrong. Please try again or email us directly.
-                </div>
-            </form>
-        </div>
-
-        <div class="info-cards">
-            <div class="card">
-                <div class="card-icon">🤖</div>
-                <h3>Android Beta</h3>
-                <p>Join our Google Play Internal Testing program for early Android access.</p>
             </div>
 
-            <div class="card">
-                <div class="card-icon">🍎</div>
-                <h3>iOS TestFlight</h3>
-                <p>Get the iOS beta through Apple's TestFlight app.</p>
+            <!-- Middle Column: Form and WhatsApp -->
+            <div class="middle-column">
+                <div class="signup-section">
+                    <h2 class="section-title">Join the Beta Program</h2>
+                    <form id="signupForm">
+                        <div class="form-group">
+                            <label for="name">Full Name</label>
+                            <input type="text"
+                                   id="name"
+                                   name="name"
+                                   required
+                                   placeholder="John Doe">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email Address</label>
+                            <input type="email"
+                                   id="email"
+                                   name="email"
+                                   required
+                                   placeholder="john@example.com">
+                        </div>
+
+                        <button type="submit" class="submit-btn">
+                            Get Early Access
+                        </button>
+
+                        <div class="success-message" id="successMsg">
+                            ✓ Welcome to the beta! Check your email for next steps.
+                        </div>
+                        <div class="error-message" id="errorMsg">
+                            Something went wrong. Please try again.
+                        </div>
+                    </form>
+                </div>
+
+                <div class="whatsapp-section">
+                    <a href="https://chat.whatsapp.com/CUx2HHyaiKSFw7LvC825kR"
+                       target="_blank"
+                       class="whatsapp-btn">
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.149-.67.149-.197.297-.767.966-.94 1.164-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414-.074-.123-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                        Join Beta Testing Group
+                    </a>
+                </div>
             </div>
 
-            <div class="card">
-                <div class="card-icon">📱</div>
-                <h3>Quick Start</h3>
-                <p>Sign up → Get invite in 24h → Install beta → Join WhatsApp → Share feedback!</p>
+            <!-- Right Column: Info Cards -->
+            <div class="right-column">
+                <div class="info-cards">
+                    <div class="card">
+                        <h3>
+                            <svg width="20" height="20" fill="#667eea" viewBox="0 0 24 24">
+                                <path d="M17.6 11.48 19.44 8l-3.86-6.4c-.19-.33-.67-.33-.86 0l-1.94 3.22c.35.53.56 1.17.56 1.85 0 .67-.2 1.29-.53 1.8l1.72 2.86c-.31.52-.48 1.09-.48 1.67 0 .65.21 1.26.59 1.79l1.91 3.19c.19.33.67.33.86 0l3.86-6.4-1.67-2.79c.65-.31 1.11-.93 1.11-1.64 0-.72-.46-1.33-1.11-1.64zM5 8.5c0-.83.67-1.5 1.5-1.5.82 0 1.5.67 1.5 1.5s-.68 1.5-1.5 1.5c-.83 0-1.5-.67-1.5-1.5zm3 7c0-.83.67-1.5 1.5-1.5.82 0 1.5.67 1.5 1.5s-.68 1.5-1.5 1.5c-.83 0-1.5-.67-1.5-1.5z"/>
+                            </svg>
+                            Android Internal Test
+                        </h3>
+                        <p>Get instant access to the Android beta through Google Play Store's Internal Testing program.</p>
+                        <ul>
+                            <li>Immediate access after signup</li>
+                            <li>Automatic updates through Play Store</li>
+                            <li>Test all features before public release</li>
+                            <li>Provide feedback directly in the app</li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h3>
+                            <svg width="20" height="20" fill="#667eea" viewBox="0 0 24 24">
+                                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                            </svg>
+                            iOS TestFlight
+                        </h3>
+                        <p>Join our iOS beta testing program through Apple's official TestFlight platform.</p>
+                        <ul>
+                            <li>Official Apple beta testing platform</li>
+                            <li>Install directly on your iPhone</li>
+                            <li>90-day testing periods</li>
+                            <li>Push notifications for new builds</li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h3>
+                            <svg width="20" height="20" fill="#667eea" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            Beta Features
+                        </h3>
+                        <p>Experience cutting-edge features before anyone else:</p>
+                        <ul>
+                            <li>AI-powered meeting scheduling</li>
+                            <li>Smart venue recommendations</li>
+                            <li>Group calendar coordination</li>
+                            <li>Voice command scheduling</li>
+                            <li>Real-time collaboration</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <div class="whatsapp-section">
-            <h2 style="margin-bottom: 20px;">Join Our Beta Testers Community</h2>
-            <p style="color: #cbd5e0; margin-bottom: 25px;">Connect with other beta testers, get instant support, and share your feedback directly with our team.</p>
-            <a href="#" class="whatsapp-btn" id="whatsappLink" target="_blank" rel="noopener noreferrer">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.149-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                </svg>
-                Join WhatsApp Group
-            </a>
-        </div>
-
-        <footer>
-            <p>&copy; 2024 SynkUp. All rights reserved.</p>
-            <p style="margin-top: 10px; font-size: 0.9em;">Finding the perfect time & place for everyone.</p>
-        </footer>
     </div>
 
-    <div class="stats" id="statsDiv">
-        <div>👁️ Page Views: <span id="viewCount">0</span></div>
-        <div>📧 Signups: <span id="signupCount">0</span></div>
+    <!-- Admin Stats Panel -->
+    <div class="admin-stats" id="adminStats">
+        <h4>📊 Admin Stats</h4>
+        <div class="stat">
+            <span>Page Views:</span>
+            <span class="stat-value" id="viewCount">0</span>
+        </div>
+        <div class="stat">
+            <span>Signups:</span>
+            <span class="stat-value" id="signupCount">0</span>
+        </div>
     </div>
 
     <script>
         // Configuration
-        const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xeorpaza'; // Your Formspree form ID
-        const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/CUx2HHyaiKSFw7LvC825kR'; // SynkUp WhatsApp Group
-        const COUNTAPI_KEY = 'synkup-beta-' + window.location.hostname.replace(/\./g, '-');
+        const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xeorpaza';
+        const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/CUx2HHyaiKSFw7LvC825kR';
 
-        // Set WhatsApp link
-        document.getElementById('whatsappLink').href = WHATSAPP_GROUP_URL || '#';
-
-        // Update form action
-        document.getElementById('signupForm').action = FORMSPREE_ENDPOINT;
+        // Initialize counters
+        let pageViews = 0;
+        let signups = 0;
 
         // Track page view
         async function trackPageView() {
             try {
-                const response = await fetch(`https://api.countapi.xyz/hit/${COUNTAPI_KEY}/pageviews`);
+                const response = await fetch('https://api.countapi.xyz/hit/synkup-beta/views');
                 const data = await response.json();
-                document.getElementById('viewCount').textContent = data.value;
+                pageViews = data.value;
+                document.getElementById('viewCount').textContent = pageViews;
             } catch (error) {
                 console.error('Error tracking page view:', error);
             }
@@ -429,9 +593,10 @@
         // Track signup
         async function trackSignup() {
             try {
-                const response = await fetch(`https://api.countapi.xyz/hit/${COUNTAPI_KEY}/signups`);
+                const response = await fetch('https://api.countapi.xyz/hit/synkup-beta/signups');
                 const data = await response.json();
-                document.getElementById('signupCount').textContent = data.value;
+                signups = data.value;
+                document.getElementById('signupCount').textContent = signups;
             } catch (error) {
                 console.error('Error tracking signup:', error);
             }
@@ -441,43 +606,46 @@
         async function getCounts() {
             try {
                 const [viewsResponse, signupsResponse] = await Promise.all([
-                    fetch(`https://api.countapi.xyz/get/${COUNTAPI_KEY}/pageviews`),
-                    fetch(`https://api.countapi.xyz/get/${COUNTAPI_KEY}/signups`)
+                    fetch('https://api.countapi.xyz/get/synkup-beta/views'),
+                    fetch('https://api.countapi.xyz/get/synkup-beta/signups')
                 ]);
 
                 if (viewsResponse.ok) {
                     const viewsData = await viewsResponse.json();
-                    document.getElementById('viewCount').textContent = viewsData.value || 0;
+                    pageViews = viewsData.value || 0;
+                    document.getElementById('viewCount').textContent = pageViews;
                 }
 
                 if (signupsResponse.ok) {
                     const signupsData = await signupsResponse.json();
-                    document.getElementById('signupCount').textContent = signupsData.value || 0;
+                    signups = signupsData.value || 0;
+                    document.getElementById('signupCount').textContent = signups;
                 }
             } catch (error) {
                 console.error('Error getting counts:', error);
             }
         }
 
-        // Handle form submission
+        // Form submission
         document.getElementById('signupForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const submitBtn = document.getElementById('submitBtn');
+            const submitBtn = this.querySelector('.submit-btn');
             const successMsg = document.getElementById('successMsg');
             const errorMsg = document.getElementById('errorMsg');
-            const formData = new FormData(this);
 
-            // Hide any previous messages
+            // Hide messages
             successMsg.style.display = 'none';
             errorMsg.style.display = 'none';
 
-            // Disable submit button
+            // Disable button
             submitBtn.disabled = true;
             submitBtn.textContent = 'Sending...';
 
+            const formData = new FormData(this);
+
             try {
-                const response = await fetch(this.action, {
+                const response = await fetch(FORMSPREE_ENDPOINT, {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -486,21 +654,14 @@
                 });
 
                 if (response.ok) {
-                    // Track successful signup
+                    successMsg.style.display = 'block';
+                    this.reset();
                     await trackSignup();
 
-                    // Show success message
-                    successMsg.style.display = 'block';
-
-                    // Reset form
-                    this.reset();
-
-                    // Optional: Redirect to WhatsApp after 2 seconds
-                    setTimeout(() => {
-                        if (WHATSAPP_GROUP_URL && WHATSAPP_GROUP_URL !== '#') {
-                            window.open(WHATSAPP_GROUP_URL, '_blank');
-                        }
-                    }, 2000);
+                    // Scroll to success message on mobile
+                    if (window.innerWidth <= 768) {
+                        successMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 } else {
                     throw new Error('Form submission failed');
                 }
@@ -508,28 +669,25 @@
                 console.error('Error submitting form:', error);
                 errorMsg.style.display = 'block';
             } finally {
-                // Re-enable submit button
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Sign Up for Beta Access';
+                submitBtn.textContent = 'Get Early Access';
             }
         });
 
         // Check for admin mode
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('admin') === 'true') {
-            document.getElementById('statsDiv').classList.add('show');
+            document.getElementById('adminStats').style.display = 'block';
             getCounts();
         }
 
-        // Track page view on load
+        // Track initial page view
         trackPageView();
 
-        // Load hero image
-        const heroImg = document.getElementById('heroImage');
-        // This will be replaced with the actual image path when deployed
-        heroImg.onerror = function() {
-            this.style.display = 'none';
-        };
+        // Periodic count refresh in admin mode
+        if (urlParams.get('admin') === 'true') {
+            setInterval(getCounts, 30000); // Refresh every 30 seconds
+        }
     </script>
 </body>
 </html>
