@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SynkUp - Find the perfect time & place</title>
+    <meta name="description" content="Join the SynkUp beta testing program. Get early access to our scheduling app for Android and iOS.">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 1.2em;
+            color: #a8b2d1;
+            margin-bottom: 30px;
+        }
+
+        .hero-image {
+            text-align: center;
+            margin: 40px 0;
+            animation: fadeIn 1s ease;
+        }
+
+        .hero-image img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .signup-section {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px auto;
+            max-width: 600px;
+            animation: fadeInUp 0.8s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5e0;
+            font-weight: 500;
+        }
+
+        input[type="email"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            color: #ffffff;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="email"]:focus,
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(255,255,255,0.08);
+        }
+
+        input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .success-message {
+            display: none;
+            padding: 15px;
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid #10b981;
+            border-radius: 10px;
+            color: #10b981;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .error-message {
+            display: none;
+            padding: 15px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            border-radius: 10px;
+            color: #ef4444;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .info-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 60px 0;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2);
+        }
+
+        .card-icon {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .card p {
+            color: #cbd5e0;
+            line-height: 1.6;
+        }
+
+        .whatsapp-section {
+            text-align: center;
+            margin: 60px 0;
+            padding: 40px;
+            background: rgba(37, 211, 102, 0.1);
+            border-radius: 20px;
+            border: 1px solid rgba(37, 211, 102, 0.3);
+        }
+
+        .whatsapp-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: #25d366;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .whatsapp-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(37, 211, 102, 0.4);
+            background: #20ba5a;
+        }
+
+        .stats {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #cbd5e0;
+            display: none;
+            z-index: 1000;
+        }
+
+        .stats.show {
+            display: block;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            color: #718096;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 80px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            .signup-section {
+                padding: 30px 20px;
+            }
+
+            .info-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">S</div>
+                <h1>SynkUp</h1>
+            </div>
+            <p class="tagline">Find the perfect time & place</p>
+        </header>
+
+        <div class="hero-image">
+            <img src="synkup-hero.png" alt="SynkUp App Preview" id="heroImage">
+        </div>
+
+        <div class="signup-section">
+            <h2 style="text-align: center; margin-bottom: 30px; color: #fff;">Join Our Beta Testing Program</h2>
+
+            <form id="signupForm" action="https://formspree.io/f/xeorpaza" method="POST">
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" placeholder="Enter your full name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="your@email.com" required>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Sign Up for Beta Access
+                </button>
+
+                <div class="success-message" id="successMsg">
+                    🎉 Thank you for signing up! Check your email for testing instructions.
+                </div>
+
+                <div class="error-message" id="errorMsg">
+                    Something went wrong. Please try again or email us directly.
+                </div>
+            </form>
+        </div>
+
+        <div class="info-cards">
+            <div class="card">
+                <div class="card-icon">🤖</div>
+                <h3>Android Internal Test</h3>
+                <p>Get early access to SynkUp on Android through our Internal Testing program. You'll receive an invitation link to join the test group on Google Play Store. Test the latest features and provide valuable feedback.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🍎</div>
+                <h3>iOS TestFlight</h3>
+                <p>Join our iOS beta through Apple's TestFlight program. Download the TestFlight app from the App Store, then use our invitation link to install SynkUp. Experience new features before they're publicly available.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">📱</div>
+                <h3>How It Works</h3>
+                <p>1. Sign up with your email<br>
+                   2. Receive testing invitation within 24 hours<br>
+                   3. Install the beta app<br>
+                   4. Join our WhatsApp group for support<br>
+                   5. Share feedback and shape the product!</p>
+            </div>
+        </div>
+
+        <div class="whatsapp-section">
+            <h2 style="margin-bottom: 20px;">Join Our Beta Testers Community</h2>
+            <p style="color: #cbd5e0; margin-bottom: 25px;">Connect with other beta testers, get instant support, and share your feedback directly with our team.</p>
+            <a href="#" class="whatsapp-btn" id="whatsappLink" target="_blank" rel="noopener noreferrer">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.149-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                </svg>
+                Join WhatsApp Group
+            </a>
+        </div>
+
+        <footer>
+            <p>&copy; 2024 SynkUp. All rights reserved.</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">Finding the perfect time & place for everyone.</p>
+        </footer>
+    </div>
+
+    <div class="stats" id="statsDiv">
+        <div>👁️ Page Views: <span id="viewCount">0</span></div>
+        <div>📧 Signups: <span id="signupCount">0</span></div>
+    </div>
+
+    <script>
+        // Configuration
+        const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xeorpaza'; // Your Formspree form ID
+        const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/CUx2HHyaiKSFw7LvC825kR'; // SynkUp WhatsApp Group
+        const COUNTAPI_KEY = 'synkup-beta-' + window.location.hostname.replace(/\./g, '-');
+
+        // Set WhatsApp link
+        document.getElementById('whatsappLink').href = WHATSAPP_GROUP_URL || '#';
+
+        // Update form action
+        document.getElementById('signupForm').action = FORMSPREE_ENDPOINT;
+
+        // Track page view
+        async function trackPageView() {
+            try {
+                const response = await fetch(`https://api.countapi.xyz/hit/${COUNTAPI_KEY}/pageviews`);
+                const data = await response.json();
+                document.getElementById('viewCount').textContent = data.value;
+            } catch (error) {
+                console.error('Error tracking page view:', error);
+            }
+        }
+
+        // Track signup
+        async function trackSignup() {
+            try {
+                const response = await fetch(`https://api.countapi.xyz/hit/${COUNTAPI_KEY}/signups`);
+                const data = await response.json();
+                document.getElementById('signupCount').textContent = data.value;
+            } catch (error) {
+                console.error('Error tracking signup:', error);
+            }
+        }
+
+        // Get current counts
+        async function getCounts() {
+            try {
+                const [viewsResponse, signupsResponse] = await Promise.all([
+                    fetch(`https://api.countapi.xyz/get/${COUNTAPI_KEY}/pageviews`),
+                    fetch(`https://api.countapi.xyz/get/${COUNTAPI_KEY}/signups`)
+                ]);
+
+                if (viewsResponse.ok) {
+                    const viewsData = await viewsResponse.json();
+                    document.getElementById('viewCount').textContent = viewsData.value || 0;
+                }
+
+                if (signupsResponse.ok) {
+                    const signupsData = await signupsResponse.json();
+                    document.getElementById('signupCount').textContent = signupsData.value || 0;
+                }
+            } catch (error) {
+                console.error('Error getting counts:', error);
+            }
+        }
+
+        // Handle form submission
+        document.getElementById('signupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const successMsg = document.getElementById('successMsg');
+            const errorMsg = document.getElementById('errorMsg');
+            const formData = new FormData(this);
+
+            // Hide any previous messages
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+
+            try {
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    // Track successful signup
+                    await trackSignup();
+
+                    // Show success message
+                    successMsg.style.display = 'block';
+
+                    // Reset form
+                    this.reset();
+
+                    // Optional: Redirect to WhatsApp after 2 seconds
+                    setTimeout(() => {
+                        if (WHATSAPP_GROUP_URL && WHATSAPP_GROUP_URL !== '#') {
+                            window.open(WHATSAPP_GROUP_URL, '_blank');
+                        }
+                    }, 2000);
+                } else {
+                    throw new Error('Form submission failed');
+                }
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                errorMsg.style.display = 'block';
+            } finally {
+                // Re-enable submit button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign Up for Beta Access';
+            }
+        });
+
+        // Check for admin mode
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('admin') === 'true') {
+            document.getElementById('statsDiv').classList.add('show');
+            getCounts();
+        }
+
+        // Track page view on load
+        trackPageView();
+
+        // Load hero image
+        const heroImg = document.getElementById('heroImage');
+        // This will be replaced with the actual image path when deployed
+        heroImg.onerror = function() {
+            this.style.display = 'none';
+        };
+    </script>
+</body>
+</html>
