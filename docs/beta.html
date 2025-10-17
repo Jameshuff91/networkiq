@@ -151,7 +151,8 @@
         }
 
         input[type="email"],
-        input[type="text"] {
+        input[type="text"],
+        select {
             width: 100%;
             padding: 14px 18px;
             border: 2px solid rgba(102, 126, 234, 0.3);
@@ -163,7 +164,8 @@
         }
 
         input[type="email"]:focus,
-        input[type="text"]:focus {
+        input[type="text"]:focus,
+        select:focus {
             outline: none;
             border-color: #667eea;
             background: rgba(255,255,255,0.08);
@@ -171,6 +173,15 @@
 
         input::placeholder {
             color: rgba(255,255,255,0.4);
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        select option {
+            background: #1a1f3a;
+            color: #ffffff;
         }
 
         .submit-btn {
@@ -508,6 +519,17 @@
                                    name="email"
                                    required
                                    placeholder="john@example.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="platform">Platform</label>
+                            <select id="platform"
+                                    name="platform"
+                                    required>
+                                <option value="">Select your platform</option>
+                                <option value="iOS">iOS</option>
+                                <option value="Android">Android</option>
+                            </select>
                         </div>
 
                         <button type="submit" class="submit-btn">
